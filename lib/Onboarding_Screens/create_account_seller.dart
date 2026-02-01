@@ -1,5 +1,5 @@
 import 'package:afrotierre/constants.dart';
-import 'package:afrotierre/verify_email_screen.dart';
+import 'package:afrotierre/Onboarding_Screens/verify_email_screen.dart';
 import 'package:flutter/material.dart';
 
 class CreateAccountSellerScreen extends StatefulWidget {

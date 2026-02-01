@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   flutter_easyloading: ^3.0.5
   font_awesome_flutter: ^10.9.1
+  pinput: ^4.0.0
+  flutter_keyboard_visibility: ^6.0.0
 
 dev_dependencies:
   flutter_test:

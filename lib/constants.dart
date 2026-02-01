@@ -6,6 +6,7 @@ const createAccountBuyerScreen = "/CreateAccountBuyerScreen";
 const createAccountSellerScreen = "/CreateAccountSellerScreen";
 const signInAccountBuyerScreen = "/SignInAccountBuyerScreen";
 const signInAccountSellerScreen = "/SignInAccountSellerScreen";
+const bottomNavigationScreen = "/BottomNavigationScreen";
 
 Color primaryColor = const Color(0xFFEFAE30);
 Color secondaryColor = const Color(0xFF000000);

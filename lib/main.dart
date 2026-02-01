@@ -1,9 +1,11 @@
-import 'package:afrotierre/create_account_buyer.dart';
-import 'package:afrotierre/create_account_seller.dart';
-import 'package:afrotierre/onboarding_screen.dart';
-import 'package:afrotierre/sign_in_account_buyer.dart';
-import 'package:afrotierre/sign_in_account_seller.dart';
-import 'package:afrotierre/splash_screen.dart';
+import 'package:afrotierre/Buyers_Screens/bottom_navigation_screen.dart'
+    as bottom_from_buyer;
+import 'package:afrotierre/Onboarding_Screens/create_account_buyer.dart';
+import 'package:afrotierre/Onboarding_Screens/create_account_seller.dart';
+import 'package:afrotierre/Onboarding_Screens/onboarding_screen.dart';
+import 'package:afrotierre/Onboarding_Screens/sign_in_account_buyer.dart';
+import 'package:afrotierre/Onboarding_Screens/sign_in_account_seller.dart';
+import 'package:afrotierre/Onboarding_Screens/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
@@ -37,6 +39,8 @@ class _MyHomePageState extends State<MyHomePage> {
         signInAccountBuyerScreen: (context) => const SignInAccountBuyerScreen(),
         signInAccountSellerScreen: (context) =>
             const SignInAccountSellerScreen(),
+        bottomNavigationScreen: (context) =>
+            const bottom_from_buyer.BottomNavigationScreen(),
       },
     );
   }

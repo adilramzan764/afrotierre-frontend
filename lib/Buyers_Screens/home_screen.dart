@@ -1,14 +1,14 @@
 import 'package:afrotierre/constants.dart';
 import 'package:flutter/material.dart';
 
-class BuyerHomeScreen extends StatefulWidget {
-  const BuyerHomeScreen({super.key});
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
 
   @override
-  State<BuyerHomeScreen> createState() => _BuyerHomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _BuyerHomeScreenState extends State<BuyerHomeScreen> {
+class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(

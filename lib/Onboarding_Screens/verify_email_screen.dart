@@ -148,7 +148,9 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   ),
                   const SizedBox(height: 32),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.pushNamed(context, bottomNavigationScreen);
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey,
                       padding: EdgeInsets.symmetric(
