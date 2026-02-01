@@ -1,15 +1,17 @@
 import 'package:afrotierre/constants.dart';
+import 'package:afrotierre/verify_email_screen.dart';
 import 'package:flutter/material.dart';
 
-class CreateAccountSellerScreen extends StatefulWidget {
-  const CreateAccountSellerScreen({super.key});
+class CreateAccountBuyerScreen extends StatefulWidget {
+  const CreateAccountBuyerScreen({super.key});
 
   @override
-  State<CreateAccountSellerScreen> createState() =>
-      _CreateAccountSellerScreenState();
+  State<CreateAccountBuyerScreen> createState() =>
+      _CreateAccountBuyerScreenState();
 }
 
-class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
+class _CreateAccountBuyerScreenState extends State<CreateAccountBuyerScreen> {
+  final TextEditingController _emailController = TextEditingController();
   bool _isPasswordVisible = false;
 
   @override
@@ -39,7 +41,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    ' Seller',
+                    ' Buyer',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -47,12 +49,12 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Icon(Icons.storefront_outlined, color: primaryColor),
+                  Icon(Icons.shopping_cart_outlined, color: primaryColor),
                 ],
               ),
               const SizedBox(height: 8),
               const Text(
-                'Create your wallet as a seller',
+                'Create your wallet as a buyer',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, color: Colors.grey),
               ),
@@ -67,6 +69,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               ),
               const SizedBox(height: 8),
               TextField(
+                controller: _emailController,
                 decoration: InputDecoration(
                   hintText: 'Enter your email',
                   border: OutlineInputBorder(
@@ -126,7 +129,14 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               ),
               const SizedBox(height: 40),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext context) {
+                      return VerifyEmailScreen(email: _emailController.text);
+                    },
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: secondaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 20),
@@ -149,7 +159,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.pushNamed(context, signInAccountSellerScreen);
+                      // Navigate to Sign In
                     },
                     child: Text(
                       'Sign in',
@@ -212,7 +222,6 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           icon,
           const SizedBox(width: 12),
