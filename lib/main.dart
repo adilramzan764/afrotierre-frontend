@@ -1,3 +1,5 @@
+import 'package:afrotierre/create_account_buyer.dart';
+import 'package:afrotierre/create_account_seller.dart';
 import 'package:afrotierre/onboarding_screen.dart';
 import 'package:afrotierre/splash_screen.dart';
 import 'package:flutter/material.dart';
@@ -27,6 +29,9 @@ class _MyHomePageState extends State<MyHomePage> {
       routes: <String, WidgetBuilder>{
         splashScreen: (context) => SplashScreen(),
         onboardingScreen: (context) => const OnboardingScreen(),
+        createAccountBuyerScreen: (context) => const CreateAccountBuyerScreen(),
+        createAccountSellerScreen: (context) =>
+            const CreateAccountSellerScreen(),
       },
     );
   }
