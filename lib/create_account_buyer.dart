@@ -150,7 +150,7 @@ class _CreateAccountBuyerScreenState extends State<CreateAccountBuyerScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigate to Sign In
+                      Navigator.pushNamed(context, signInAccountBuyerScreen);
                     },
                     child: Text(
                       'Sign in',
@@ -176,13 +176,13 @@ class _CreateAccountBuyerScreenState extends State<CreateAccountBuyerScreen> {
               const SizedBox(height: 32),
               _buildSocialButton(
                 'Continue with Google',
-                const Icon(Icons.android, color: Colors.green), // Placeholder
+                Image.asset('assets/google.png', height: 20),
                 () {},
               ),
               const SizedBox(height: 16),
               _buildSocialButton(
                 'Continue with Apple',
-                const Icon(Icons.apple, color: Colors.black),
+                Image.asset('assets/apple.png', height: 20),
                 () {},
               ),
               const SizedBox(height: 20),
@@ -213,6 +213,7 @@ class _CreateAccountBuyerScreenState extends State<CreateAccountBuyerScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           icon,
           const SizedBox(width: 12),

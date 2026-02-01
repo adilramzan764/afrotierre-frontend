@@ -122,7 +122,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               ),
               const SizedBox(height: 8),
               _buildPasswordRequirement(
-                'Password must contain a mixture of uppercase, lowercase and numbers',
+                'Password must contain a mixture of uppercase,\nlowercase and numbers',
               ),
               const SizedBox(height: 40),
               ElevatedButton(
@@ -149,7 +149,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigate to Sign In
+                      Navigator.pushNamed(context, signInAccountSellerScreen);
                     },
                     child: Text(
                       'Sign in',
@@ -175,13 +175,13 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               const SizedBox(height: 32),
               _buildSocialButton(
                 'Continue with Google',
-                const Icon(Icons.android, color: Colors.green), // Placeholder
+                Image.asset('assets/google.png', height: 20),
                 () {},
               ),
               const SizedBox(height: 16),
               _buildSocialButton(
                 'Continue with Apple',
-                const Icon(Icons.apple, color: Colors.black),
+                Image.asset('assets/apple.png', height: 20),
                 () {},
               ),
               const SizedBox(height: 20),
@@ -212,6 +212,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           icon,
           const SizedBox(width: 12),

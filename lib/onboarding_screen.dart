@@ -90,7 +90,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      // Navigate to Sign In
+                      if (_selectedWalletType == 'Seller') {
+                        Navigator.pushNamed(context, signInAccountSellerScreen);
+                      } else if (_selectedWalletType == 'Buyer') {
+                        Navigator.pushNamed(context, signInAccountBuyerScreen);
+                      }
                     },
                     child: Text(
                       'Sign in',
