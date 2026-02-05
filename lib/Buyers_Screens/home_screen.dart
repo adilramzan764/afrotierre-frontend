@@ -12,6 +12,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -41,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         const CircleAvatar(
           radius: 24,
-          // backgroundImage: AssetImage('assets/profile_pic.png'),
+          backgroundImage: AssetImage("assets/stock_image.png"),
         ),
         const SizedBox(width: 12),
         const Column(
@@ -105,6 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: BoxBorder.all(color: Colors.black),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -149,7 +151,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           // Placeholder for the image
-          Container(width: 120, height: 120, color: Colors.grey[300]),
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage("assets/stock_image.png"),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -197,6 +208,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     CircleAvatar(
                       radius: 30,
                       // backgroundImage: AssetImage(categories[index]['icon']!),
+                      backgroundImage: AssetImage("assets/stock_image.png"),
                       backgroundColor: Colors.grey[200],
                     ),
                     const SizedBox(height: 8),
@@ -241,8 +253,12 @@ class _HomeScreenState extends State<HomeScreen> {
           Stack(
             children: [
               Container(
-                height: 180,
+                height: MediaQuery.of(context).size.height * 0.2,
                 decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage("assets/stock_image.png"),
+                    fit: BoxFit.cover,
+                  ),
                   color: Colors.grey[200],
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(16),
@@ -274,22 +290,23 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Ladies gym wear',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.star, color: primaryColor, size: 16),
-                    const Text(' 4.5(201)'),
+                    const Text(
+                      'Ladies gym wear',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    Row(
+                      children: [
+                        Icon(Icons.star, color: primaryColor, size: 10),
+                        const Text(' 4.5(201)', style: TextStyle(fontSize: 12)),
+                      ],
+                    ),
                   ],
                 ),
                 const SizedBox(height: 4),
-                const Text(
-                  '\$24.99',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
+                const Text('\$24.99', style: TextStyle(fontSize: 16)),
               ],
             ),
           ),
