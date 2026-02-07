@@ -57,7 +57,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         const Spacer(),
         IconButton(
-          onPressed: () {},
+          onPressed: () {
+            Navigator.pushNamed(context, cartScreen);
+          },
           icon: const Icon(Icons.shopping_cart_outlined, size: 28),
         ),
         IconButton(
@@ -70,29 +72,59 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSearchBar() {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Expanded(
-          child: TextField(
-            decoration: InputDecoration(
-              hintText: 'Search Product',
-              prefixIcon: const Icon(Icons.search, color: Colors.grey),
-              filled: true,
-              fillColor: Colors.grey[200],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(30),
-                borderSide: BorderSide.none,
-              ),
+        // Expanded(
+        //   child: TextField(
+        //     decoration: InputDecoration(
+        //       hintText: 'Search Product',
+        //       prefixIcon: const Icon(Icons.search, color: Colors.grey),
+        //       filled: true,
+        //       fillColor: Colors.grey[200],
+        //       border: OutlineInputBorder(
+        //         borderRadius: BorderRadius.circular(30),
+        //         borderSide: BorderSide.none,
+        //       ),
+        //     ),
+        //   ),
+        // ),
+        // const SizedBox(width: 16),
+        GestureDetector(
+          onTap: () {
+            Navigator.pushNamed(context, searchScreen);
+          },
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.72,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(30),
+            ),
+
+            child: Row(
+              children: [
+                const SizedBox(width: 18),
+                const Icon(Icons.search, color: Colors.grey),
+                const SizedBox(width: 8),
+                Text(
+                  'Search Product',
+                  style: TextStyle(color: Colors.grey[500]),
+                ),
+              ],
             ),
           ),
         ),
-        const SizedBox(width: 16),
+
         Container(
+          height: 44,
           decoration: BoxDecoration(
             color: Colors.grey[200],
             borderRadius: BorderRadius.circular(12),
           ),
           child: IconButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.pushNamed(context, filtersScreen);
+            },
             icon: const Icon(Icons.filter_list, size: 28),
           ),
         ),
@@ -186,7 +218,9 @@ class _HomeScreenState extends State<HomeScreen> {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             TextButton(
-              onPressed: () {},
+              onPressed: () {
+                Navigator.pushNamed(context, categoriesScreen);
+              },
               child: const Text(
                 'See All',
                 style: TextStyle(color: Colors.grey),
@@ -242,75 +276,83 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProductItem() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              Container(
-                height: MediaQuery.of(context).size.height * 0.2,
-                decoration: BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage("assets/stock_image.png"),
-                    fit: BoxFit.cover,
-                  ),
-                  color: Colors.grey[200],
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.favorite_border,
-                      color: Colors.black,
-                      size: 20,
-                    ),
-                    onPressed: () {},
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: () {
+        Navigator.pushNamed(context, productDetailsScreen);
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Ladies gym wear',
-                      style: TextStyle(fontSize: 12),
+                Container(
+                  height: MediaQuery.of(context).size.height * 0.2,
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage("assets/stock_image.png"),
+                      fit: BoxFit.cover,
                     ),
-                    Row(
-                      children: [
-                        Icon(Icons.star, color: primaryColor, size: 10),
-                        const Text(' 4.5(201)', style: TextStyle(fontSize: 12)),
-                      ],
+                    color: Colors.grey[200],
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(16),
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: 4),
-                const Text('\$24.99', style: TextStyle(fontSize: 16)),
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: const Icon(
+                        Icons.favorite_border,
+                        color: Colors.black,
+                        size: 20,
+                      ),
+                      onPressed: () {},
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-        ],
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Ladies gym wear',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      Row(
+                        children: [
+                          Icon(Icons.star, color: primaryColor, size: 10),
+                          const Text(
+                            ' 4.5(201)',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('\$24.99', style: TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

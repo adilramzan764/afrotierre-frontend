@@ -1,5 +1,6 @@
 import 'package:afrotierre/Buyers_Screens/home_screen.dart';
 import 'package:afrotierre/Buyers_Screens/marketplace_screen.dart';
+import 'package:afrotierre/Buyers_Screens/my_orders_screen.dart';
 import 'package:afrotierre/Buyers_Screens/profile_screen.dart';
 import 'package:afrotierre/Buyers_Screens/settings_screen.dart';
 import 'package:afrotierre/constants.dart';
@@ -16,7 +17,8 @@ class _BottomNavigationScreenState extends State<BottomNavigationScreen> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
     const HomeScreen(),
-    const MarketplaceScreen(),
+    const MyOrdersScreen(),
+    // const MarketplaceScreen(),
     const SettingsScreen(),
     const ProfileScreen(),
   ];
@@ -41,9 +43,13 @@ class _BottomNavigationScreenState extends State<BottomNavigationScreen> {
             label: 'Home',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart_outlined),
-            label: 'Marketplace',
+            icon: Icon(Icons.add_shopping_cart_sharp),
+            label: 'My Orders',
           ),
+          // BottomNavigationBarItem(
+          //   icon: Icon(Icons.shopping_cart_outlined),
+          //   label: 'Marketplace',
+          // ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             label: 'Settings',
