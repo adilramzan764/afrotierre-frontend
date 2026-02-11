@@ -136,7 +136,7 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
               const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, bottomNavigationScreen);
+                  Navigator.pushNamed(context, vendorBottomNavigationScreen);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: secondaryColor,

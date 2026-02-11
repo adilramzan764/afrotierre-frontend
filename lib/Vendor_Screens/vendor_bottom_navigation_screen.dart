@@ -1,24 +1,30 @@
-import 'package:afrotierre/Buyers_Screens/home_screen.dart';
-import 'package:afrotierre/Buyers_Screens/marketplace_screen.dart';
-import 'package:afrotierre/Buyers_Screens/my_orders_screen.dart';
 import 'package:afrotierre/Buyers_Screens/profile_screen.dart';
 import 'package:afrotierre/Buyers_Screens/settings_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_customers_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_home_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_orders_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_product_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_profile_screen.dart';
 import 'package:afrotierre/constants.dart';
 import 'package:flutter/material.dart';
 
-class BottomNavigationScreen extends StatefulWidget {
-  const BottomNavigationScreen({super.key});
+class VendorBottomNavigationScreen extends StatefulWidget {
+  const VendorBottomNavigationScreen({super.key});
 
   @override
-  State<BottomNavigationScreen> createState() => _BottomNavigationScreenState();
+  State<VendorBottomNavigationScreen> createState() =>
+      _VendorBottomNavigationScreenState();
 }
 
-class _BottomNavigationScreenState extends State<BottomNavigationScreen> {
+class _VendorBottomNavigationScreenState
+    extends State<VendorBottomNavigationScreen> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
-    const HomeScreen(),
-    const MyOrdersScreen(),
-    // const MarketplaceScreen(),
+    const VendorHomeScreen(),
+    const VendorOrdersScreen(),
+    // const VendorCustomersScreen(),
+    const VendorProductScreen(),
+    // const VendorProfileScreen(),
     const SettingsScreen(),
     const ProfileScreen(),
   ];
@@ -39,7 +45,7 @@ class _BottomNavigationScreenState extends State<BottomNavigationScreen> {
             });
           },
           type: BottomNavigationBarType.fixed,
-          selectedItemColor: primaryColor,
+          selectedItemColor: Colors.black,
           unselectedItemColor: Colors.grey,
           items: const [
             BottomNavigationBarItem(
@@ -47,12 +53,20 @@ class _BottomNavigationScreenState extends State<BottomNavigationScreen> {
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.add_shopping_cart_sharp),
-              label: 'My Orders',
+              icon: Icon(Icons.shopping_basket_outlined),
+              label: 'Orders',
             ),
             // BottomNavigationBarItem(
-            //   icon: Icon(Icons.shopping_cart_outlined),
-            //   label: 'Marketplace',
+            //   icon: Icon(Icons.people_outline),
+            //   label: 'Customers',
+            // ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.inventory_2_outlined),
+              label: 'Product',
+            ),
+            // BottomNavigationBarItem(
+            //   icon: Icon(Icons.person_outline),
+            //   label: 'Profile',
             // ),
             BottomNavigationBarItem(
               icon: Icon(Icons.settings_outlined),

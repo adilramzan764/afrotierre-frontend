@@ -9,8 +9,6 @@ class OnboardingScreen extends StatefulWidget {
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  String _selectedWalletType = 'Buyer';
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -41,10 +39,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               _buildWalletTypeSelector(
                 title: 'Seller',
                 icon: Icons.storefront_outlined,
-                isSelected: _selectedWalletType == 'Seller',
+                isSelected: selectedWalletType == 'Seller',
                 onTap: () {
                   setState(() {
-                    _selectedWalletType = 'Seller';
+                    selectedWalletType = 'Seller';
                   });
                 },
               ),
@@ -52,19 +50,19 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               _buildWalletTypeSelector(
                 title: 'Buyer',
                 icon: Icons.shopping_cart_outlined,
-                isSelected: _selectedWalletType == 'Buyer',
+                isSelected: selectedWalletType == 'Buyer',
                 onTap: () {
                   setState(() {
-                    _selectedWalletType = 'Buyer';
+                    selectedWalletType = 'Buyer';
                   });
                 },
               ),
               const Spacer(),
               ElevatedButton(
                 onPressed: () {
-                  if (_selectedWalletType == 'Seller') {
+                  if (selectedWalletType == 'Seller') {
                     Navigator.pushNamed(context, createAccountSellerScreen);
-                  } else if (_selectedWalletType == 'Buyer') {
+                  } else if (selectedWalletType == 'Buyer') {
                     Navigator.pushNamed(context, createAccountBuyerScreen);
                   }
                 },
@@ -90,9 +88,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ),
                   GestureDetector(
                     onTap: () {
-                      if (_selectedWalletType == 'Seller') {
+                      if (selectedWalletType == 'Seller') {
                         Navigator.pushNamed(context, signInAccountSellerScreen);
-                      } else if (_selectedWalletType == 'Buyer') {
+                      } else if (selectedWalletType == 'Buyer') {
                         Navigator.pushNamed(context, signInAccountBuyerScreen);
                       }
                     },

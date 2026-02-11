@@ -149,7 +149,18 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
                   const SizedBox(height: 32),
                   ElevatedButton(
                     onPressed: () {
-                      Navigator.pushNamed(context, bottomNavigationScreen);
+                      if (selectedWalletType == 'Seller') {
+                        // Navigator.pushNamed(
+                        //   context,
+                        //   vendorBottomNavigationScreen,
+                        // );
+                        Navigator.pushNamed(
+                          context,
+                          vendorSubcriptionPlanScreen,
+                        );
+                      } else if (selectedWalletType == 'Buyer') {
+                        Navigator.pushNamed(context, bottomNavigationScreen);
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey,

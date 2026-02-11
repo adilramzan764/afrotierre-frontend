@@ -22,6 +22,17 @@ import 'package:afrotierre/Onboarding_Screens/onboarding_screen.dart';
 import 'package:afrotierre/Onboarding_Screens/sign_in_account_buyer.dart';
 import 'package:afrotierre/Onboarding_Screens/sign_in_account_seller.dart';
 import 'package:afrotierre/Onboarding_Screens/splash_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_add_product_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_bottom_navigation_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_commission_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_notification_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_order_details_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_product_details_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_sales_statistics_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_subcription_plan_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_transaction_history_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_withdrawal_confirm_screen.dart';
+import 'package:afrotierre/Vendor_Screens/vendor_withdrawal_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 
@@ -79,6 +90,24 @@ class _MyHomePageState extends State<MyHomePage> {
         notificationScreen: (context) => const NotificationScreen(),
         paymentMethodScreen: (context) => const PaymentMethodScreen(),
         addCardScreen: (context) => const AddCardScreen(),
+        //vendor
+        vendorBottomNavigationScreen: (context) =>
+            const VendorBottomNavigationScreen(),
+        vendorSalesStatisticsScreen: (context) =>
+            const VendorSalesStatisticsScreen(),
+        vendorCommissionScreen: (context) => const VendorCommissionScreen(),
+        vendorNotificationScreen: (context) => const VendorNotificationScreen(),
+        vendorSubcriptionPlanScreen: (context) =>
+            const VendorSubcriptionPlanScreen(),
+        vendorProductDetailsScreen: (context) =>
+            const VendorProductDetailsScreen(),
+        vendorTransactionHistoryScreen: (context) =>
+            const VendorTransactionHistoryScreen(),
+        vendorWithdrawalScreen: (context) => const VendorWithdrawalScreen(),
+        vendorWithdrawalConfirmScreen: (context) =>
+            const VendorWithdrawalConfirmScreen(),
+        vendorAddProductScreen: (context) => const VendorAddProductScreen(),
+        vendorOrderDetailsScreen: (context) => const VendorOrderDetailsScreen(),
       },
     );
   }
