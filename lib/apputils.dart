@@ -2,122 +2,74 @@ import 'package:flutter/material.dart';
 
 class AppUtils {
   largeLabelTextStyle({color}) {
-    return TextStyle(
-      color: color,
-      fontSize: 22,
-      fontWeight: FontWeight.w600,
-    );
+    return TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w600);
   }
 
   smallHeadingTextStyle({color}) {
-    return TextStyle(
-      color: color,
-      fontWeight: FontWeight.w700,
-      fontSize: 14,
-    );
+    return TextStyle(color: color, fontWeight: FontWeight.w700, fontSize: 14);
   }
 
   smallHalfBoldTextStyle({color}) {
-    return TextStyle(
-      color: color,
-      fontWeight: FontWeight.w500,
-      fontSize: 14,
-    );
+    return TextStyle(color: color, fontWeight: FontWeight.w500, fontSize: 14);
   }
 
   smallBoldTextStyle({color}) {
-    return TextStyle(
-      color: color,
-      fontWeight: FontWeight.bold,
-      fontSize: 14,
-    );
+    return TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 14);
   }
 
   largeHeadingTextStyle({color}) {
-    return TextStyle(
-      fontSize: 22,
-      fontWeight: FontWeight.bold,
-      color: color,
-    );
+    return TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color);
   }
 
   tileText(text, color) {
     return Text(
       text,
-      style: TextStyle(
-        fontWeight: FontWeight.bold,
-        fontSize: 18,
-        color: color,
-      ),
+      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color),
     );
   }
 
   tileTextStyle({color}) {
-    return TextStyle(
-      fontSize: 18,
-      color: color,
-    );
+    return TextStyle(fontSize: 18, color: color);
   }
 
   tileBoldTextStyle({color}) {
-    return TextStyle(
-      fontWeight: FontWeight.bold,
-      fontSize: 18,
-      color: color,
-    );
+    return TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: color);
   }
 
   tileHalfBoldTextStyle({color}) {
-    return TextStyle(
-      fontWeight: FontWeight.w500,
-      fontSize: 18,
-      color: color,
-    );
+    return TextStyle(fontWeight: FontWeight.w500, fontSize: 18, color: color);
   }
 
   smallTitleTextStyle({color}) {
-    return TextStyle(
-      color: color,
-      fontSize: 14,
-    );
+    return TextStyle(color: color, fontSize: 14);
   }
 
   mediumTitleTextStyle({color}) {
-    return TextStyle(
-      fontSize: 15,
-      color: color,
-    );
+    return TextStyle(fontSize: 15, color: color);
   }
 
   mediumTitleBoldTextStyle({color}) {
-    return TextStyle(
-      fontSize: 15,
-      fontWeight: FontWeight.bold,
-      color: color,
-    );
+    return TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color);
   }
 
   mediumTitleHalfBoldTextStyle({color}) {
-    return TextStyle(
-      fontSize: 15,
-      fontWeight: FontWeight.w500,
-      color: color,
-    );
+    return TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: color);
   }
 
-  bigButton(
-      {width,
-      height,
-      borderColor,
-      onTap,
-      borderWidth,
-      borderRadius,
-      containerColor,
-      text,
-      shadowColors,
-      textColor,
-      fontSize,
-      fontWeight}) {
+  bigButton({
+    width,
+    height,
+    borderColor,
+    onTap,
+    borderWidth,
+    borderRadius,
+    containerColor,
+    text,
+    shadowColors,
+    textColor,
+    fontSize,
+    fontWeight,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -126,8 +78,9 @@ class AppUtils {
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           border: Border.all(
-              color: borderColor ?? Colors.transparent,
-              width: borderWidth == null ? 2 : borderWidth.toDouble()),
+            color: borderColor ?? Colors.transparent,
+            width: borderWidth == null ? 2 : borderWidth.toDouble(),
+          ),
           borderRadius: BorderRadius.circular(borderRadius ?? 0),
           color: containerColor ?? Colors.white,
         ),
@@ -145,26 +98,27 @@ class AppUtils {
     );
   }
 
-  textField(
-      {controller,
-      hintText,
-      fontWeight,
-      borderColor = Colors.black,
-      width,
-      height,
-      fontSize,
-      obscureText,
-      labelText,
-      keyboardType,
-      maxLines,
-      contentPadding,
-      labelColor,
-      suffixIcon,
-      hintStyle,
-      validator,
-      textFormFieldColor,
-      textFormFieldBorder,
-      onChange}) {
+  textField({
+    controller,
+    hintText,
+    fontWeight,
+    borderColor = Colors.black,
+    width,
+    height,
+    fontSize,
+    obscureText,
+    labelText,
+    keyboardType,
+    maxLines,
+    contentPadding,
+    labelColor,
+    suffixIcon,
+    hintStyle,
+    validator,
+    textFormFieldColor,
+    textFormFieldBorder,
+    onChange,
+  }) {
     return SizedBox(
       width: width,
       child: Column(
@@ -181,9 +135,7 @@ class AppUtils {
               ),
             ),
           ),
-          const SizedBox(
-            height: 8,
-          ),
+          const SizedBox(height: 8),
           Container(
             height: height,
             decoration: BoxDecoration(
@@ -204,11 +156,9 @@ class AppUtils {
                     contentPadding ?? const EdgeInsets.only(top: 5, left: 15),
                 hintText: hintText,
                 border: InputBorder.none,
-                hintStyle: hintStyle ??
-                    TextStyle(
-                      color: Colors.grey,
-                      fontSize: fontSize,
-                    ),
+                hintStyle:
+                    hintStyle ??
+                    TextStyle(color: Colors.grey, fontSize: fontSize),
                 focusedErrorBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: borderColor, width: 1.5),
                   borderRadius: BorderRadius.circular(10.0),
@@ -287,9 +237,7 @@ class AppUtils {
         color: Colors.transparent,
         child: Column(
           children: [
-            const SizedBox(
-              height: 20,
-            ),
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -309,48 +257,36 @@ class AppUtils {
                 ),
               ],
             ),
-            const SizedBox(
-              height: 5,
-            ),
+            const SizedBox(height: 5),
             Row(
               children: [
                 SizedBox(
                   width: width * 0.65,
                   child: Text(
                     description,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 17, color: Colors.grey),
                     textAlign: TextAlign.left,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],
             ),
-            const SizedBox(
-              height: 10,
-            ),
+            const SizedBox(height: 10),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
                   date,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
                 GestureDetector(
-                    onTap: onTap1, child: const Icon(Icons.more_vert)),
+                  onTap: onTap1,
+                  child: const Icon(Icons.more_vert),
+                ),
               ],
             ),
-            const SizedBox(
-              height: 10,
-            ),
-            const Divider(
-              color: Colors.black26,
-            ),
+            const SizedBox(height: 10),
+            const Divider(color: Colors.black26),
           ],
         ),
       ),
@@ -371,18 +307,13 @@ class AppUtils {
         for (int i = 0; i < dates.length; i++)
           Column(
             children: [
-              const SizedBox(
-                height: 20,
-              ),
+              const SizedBox(height: 20),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   SizedBox(
                     width: width * 0.3,
-                    child: const Divider(
-                      color: Colors.grey,
-                      height: 0.5,
-                    ),
+                    child: const Divider(color: Colors.grey, height: 0.5),
                   ),
                   Text(
                     dates[i],
@@ -390,19 +321,14 @@ class AppUtils {
                   ),
                   SizedBox(
                     width: width * 0.3,
-                    child: const Divider(
-                      color: Colors.grey,
-                      height: 0.5,
-                    ),
+                    child: const Divider(color: Colors.grey, height: 0.5),
                   ),
                 ],
               ),
               for (int j = 0; j < details.length; j++)
                 Column(
                   children: [
-                    const SizedBox(
-                      height: 10,
-                    ),
+                    const SizedBox(height: 10),
                     Container(
                       width: width,
                       height: 95,
@@ -411,7 +337,9 @@ class AppUtils {
                         border: Border.all(color: Colors.grey, width: 0.5),
                       ),
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 15, vertical: 15),
+                        horizontal: 15,
+                        vertical: 15,
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,15 +363,14 @@ class AppUtils {
                               Text(
                                 amounts[j],
                                 style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.black,
-                                    fontWeight: FontWeight.w600),
+                                  fontSize: 16,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
                           ),
-                          const SizedBox(
-                            height: 0,
-                          ),
+                          const SizedBox(height: 0),
                           Text(
                             cashCheck[j],
                             style: const TextStyle(
@@ -454,18 +381,13 @@ class AppUtils {
                         ],
                       ),
                     ),
-                    const SizedBox(
-                      height: 10,
-                    ),
+                    const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
                           'Total Balance',
-                          style: TextStyle(
-                            fontSize: 17,
-                            color: Colors.grey,
-                          ),
+                          style: TextStyle(fontSize: 17, color: Colors.grey),
                         ),
                         Text(
                           totalBalance[j],
@@ -494,9 +416,7 @@ class AppUtils {
   }) {
     return Column(
       children: [
-        const SizedBox(
-          height: 10,
-        ),
+        const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -513,9 +433,7 @@ class AppUtils {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -531,9 +449,7 @@ class AppUtils {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    const SizedBox(
-                      height: 3,
-                    ),
+                    const SizedBox(height: 3),
                     SizedBox(
                       width: width * 0.5,
                       child: Text(
@@ -560,27 +476,16 @@ class AppUtils {
             ),
           ],
         ),
-        const SizedBox(
-          height: 15,
-        ),
-        const Divider(
-          color: Colors.black26,
-          height: 0.5,
-        ),
+        const SizedBox(height: 15),
+        const Divider(color: Colors.black26, height: 0.5),
       ],
     );
   }
 
-  addBankAccountScreenWidget({
-    image,
-    name,
-    onTap,
-  }) {
+  addBankAccountScreenWidget({image, name, onTap}) {
     return Column(
       children: [
-        const SizedBox(
-          height: 10,
-        ),
+        const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -597,15 +502,10 @@ class AppUtils {
                     ),
                   ),
                 ),
-                const SizedBox(
-                  width: 10,
-                ),
+                const SizedBox(width: 10),
                 Text(
                   name,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    color: Colors.black,
-                  ),
+                  style: const TextStyle(fontSize: 17, color: Colors.black),
                   textAlign: TextAlign.left,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -617,13 +517,8 @@ class AppUtils {
             ),
           ],
         ),
-        const SizedBox(
-          height: 15,
-        ),
-        const Divider(
-          color: Colors.black26,
-          height: 0.5,
-        ),
+        const SizedBox(height: 15),
+        const Divider(color: Colors.black26, height: 0.5),
       ],
     );
   }
@@ -657,17 +552,11 @@ class AppUtils {
               onTap: onTap,
               onChanged: onChanged,
               keyboardType: keyboardType,
-              style: const TextStyle(
-                color: Colors.black,
-                fontSize: 14,
-              ),
+              style: const TextStyle(color: Colors.black, fontSize: 14),
               decoration: InputDecoration(
                 border: InputBorder.none,
                 hintText: hintText,
-                hintStyle: const TextStyle(
-                  color: Colors.grey,
-                  fontSize: 14,
-                ),
+                hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
               ),
             ),
           ),

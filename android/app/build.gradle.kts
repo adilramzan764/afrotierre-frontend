@@ -24,7 +24,7 @@ android {
         applicationId = "com.example.afrotierre"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -34,6 +34,11 @@ android {
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
+            getByName("release") {
+                isMinifyEnabled = false
+                isShrinkResources = false
+            }
+
             signingConfig = signingConfigs.getByName("debug")
         }
     }

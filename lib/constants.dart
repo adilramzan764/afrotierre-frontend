@@ -25,6 +25,7 @@ const newShippingAddressScreen = "/NewShippingAddressScreen";
 const notificationScreen = "/NotificationScreen";
 const paymentMethodScreen = "/PaymentMethodScreen";
 const addCardScreen = "/AddCardScreen";
+const productListScreen = "/ProductListScreen";
 
 // vendor
 const vendorBottomNavigationScreen = "/VendorBottomNavigationScreen";
@@ -38,6 +39,11 @@ const vendorWithdrawalScreen = "/VendorWithdrawalScreen";
 const vendorWithdrawalConfirmScreen = "/VendorWithdrawalConfirmScreen";
 const vendorAddProductScreen = "/VendorAddProductScreen";
 const vendorOrderDetailsScreen = "/VendorOrderDetailsScreen";
+const storeInformationScreen = "/StoreInformationScreen";
+const forgotPasswordScreen = "/ForgotPasswordScreen";
+const String verifyEmailScreen = '/VerifyEmailScreen';
+const String vendorHomeScreen = '/VendorHomeScreen';
+const String storeDetailsScreen = '/store-details';
 
 Color primaryColor = const Color(0xFFEFAE30);
 Color secondaryColor = const Color(0xFF000000);
