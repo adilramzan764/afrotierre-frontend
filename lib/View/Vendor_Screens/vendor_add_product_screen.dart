@@ -19,11 +19,11 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
   final _formKey = GlobalKey<FormState>();
   late final SellerProductsRepo _productsRepo;
 
-  final TextEditingController _nameController = TextEditingController(text: 'Men Sneakers');
-  final TextEditingController _descriptionController = TextEditingController(text: 'Comfortable and stylish sneakers perfect for everyday wear. Made with breathable materials and a cushioned sole for all-day comfort.');
-  final TextEditingController _priceController = TextEditingController(text: '79.99');
-  final TextEditingController _discountedPriceController = TextEditingController(text: '59.99');
-  final TextEditingController _stockController = TextEditingController(text: '100');
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
+  final TextEditingController _discountedPriceController = TextEditingController();
+  final TextEditingController _stockController = TextEditingController();
 
   // Change from TextEditingController to dropdown
   String? _selectedCategory;
@@ -186,6 +186,8 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
     return null;
   }
 
+// In your VendorAddProductScreen.dart, update the _saveProduct method:
+
   Future<void> _saveProduct({required bool isDraft}) async {
     // Validate form
     if (!_formKey.currentState!.validate()) {
@@ -240,7 +242,7 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
       print('   Images: ${_selectedImages.length}');
       print('   Is Draft: $isDraft');
 
-      // Create request
+      // Create request - IMPORTANT: draft is explicitly set
       final request = CreateProductRequest(
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
@@ -254,7 +256,7 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
         attributes: attributes,
         sizes: [],
         materials: [],
-        draft: isDraft,
+        draft: isDraft, // This is already correct - false for publish, true for draft
       );
 
       // Call API
@@ -271,14 +273,12 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
           isDraft ? 'Product saved as draft successfully!' : 'Product published successfully!',
         );
 
-        // Wait a moment to show success message
         await Future.delayed(const Duration(seconds: 1));
 
         if (mounted) {
           Navigator.pop(context, true);
         }
       } else {
-        // Parse error message from response
         String errorMessage = response.message;
         if (response.error != null) {
           errorMessage = response.error!;
@@ -297,7 +297,6 @@ class _VendorAddProductScreenState extends State<VendorAddProductScreen> {
       }
     }
   }
-
   @override
   void dispose() {
     _nameController.dispose();

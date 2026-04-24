@@ -174,7 +174,7 @@ class CreateProductRequest {
     required this.materials,
     this.status,
     this.image,
-    this.draft = true,
+    this.draft = true, // Default to true (draft)
   });
 
   Map<String, dynamic> toJson() => {
@@ -190,7 +190,7 @@ class CreateProductRequest {
     'materials': materials,
     if (status != null) 'status': status,
     if (image != null) 'image': image,
-    'draft': draft,
+    'draft': draft, // This will be true or false as boolean
   };
 }
 
@@ -207,6 +207,7 @@ class UpdateProductRequest {
   List<String>? materials;
   String? status;
   String? image;
+  bool? draft;  // Add draft to update request
 
   UpdateProductRequest({
     this.name,
@@ -221,6 +222,7 @@ class UpdateProductRequest {
     this.materials,
     this.status,
     this.image,
+    this.draft,
   });
 
   Map<String, dynamic> toJson() {
@@ -237,9 +239,11 @@ class UpdateProductRequest {
     if (materials != null) map['materials'] = materials;
     if (status != null) map['status'] = status;
     if (image != null) map['image'] = image;
+    if (draft != null) map['draft'] = draft;
     return map;
   }
 }
+
 
 class UpdateStockRequest {
   final int stock;
@@ -283,7 +287,6 @@ class ProductResponse {
     );
   }
 }
-
 class PaginationInfo {
   final int page;
   final int limit;

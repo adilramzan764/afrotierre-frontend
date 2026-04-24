@@ -1,142 +1,7 @@
-// lib/models/seller_auth_models.dart
+// lib/Models/SellerModels/SellerLoginandProfleModels.dart
+
 import 'dart:convert';
-
 import 'SellerAuthModels.dart';
-
-
-class LoginRequest {
-  final String email;
-  final String password;
-
-  LoginRequest({
-    required this.email,
-    required this.password,
-  });
-
-  Map<String, dynamic> toJson() => {
-    'email': email,
-    'password': password,
-  };
-}
-
-
-
-
-class UpdateProfileRequest {
-  String? storeName;
-  String? phoneNumber;
-  String? businessEmail;
-  List<String>? category;
-  String? storeDescription;
-  String? logoPath;
-
-  UpdateProfileRequest({
-    this.storeName,
-    this.phoneNumber,
-    this.businessEmail,
-    this.category,
-    this.storeDescription,
-    this.logoPath,
-  });
-
-  Map<String, dynamic> toJson() {
-    final Map<String, dynamic> data = {};
-    if (storeName != null) data['storeName'] = storeName;
-    if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
-    if (businessEmail != null) data['businessEmail'] = businessEmail;
-    if (category != null) data['category'] = category;
-    if (storeDescription != null) data['storeDescription'] = storeDescription;
-    return data;
-  }
-}
-
-class AuthResponse {
-  final bool success;
-  final String message;
-  final String? token;
-  final SellerModel? seller;
-  final List<String>? errors;
-  final bool? isValid;
-  final int? expiresIn;
-  final bool? isAboutToExpire;
-
-  AuthResponse({
-    required this.success,
-    required this.message,
-    this.token,
-    this.seller,
-    this.errors,
-    this.isValid,
-    this.expiresIn,
-    this.isAboutToExpire,
-  });
-
-  factory AuthResponse.fromJson(Map<String, dynamic> json) {
-    // Parse errors if they exist
-    List<String>? errorList;
-    if (json['errors'] != null) {
-      if (json['errors'] is List) {
-        errorList = [];
-        for (var error in json['errors']) {
-          if (error is Map && error['msg'] != null) {
-            errorList.add(error['msg']);
-          } else if (error is String) {
-            errorList.add(error);
-          }
-        }
-      } else if (json['errors'] is String) {
-        errorList = [json['errors']];
-      }
-    }
-
-    return AuthResponse(
-      success: json['success'] ?? false,
-      message: json['message'] ?? '',
-      token: json['token'],
-      seller: json['seller'] != null
-          ? SellerModel.fromJson(json['seller'])
-          : null,
-      errors: errorList,
-      isValid: json['isValid'],
-      expiresIn: json['expiresIn'],
-      isAboutToExpire: json['isAboutToExpire'],
-    );
-  }
-
-  // Helper method to get formatted error message
-  String getFormattedErrorMessage() {
-    if (errors != null && errors!.isNotEmpty) {
-      return errors!.join('\n');
-    }
-    return message;
-  }
-}
-
-class RegistrationStepResponse {
-  final bool success;
-  final String message;
-  final String registrationStep;
-  final bool isEmailVerified;
-  final bool hasStoreDetails;
-
-  RegistrationStepResponse({
-    required this.success,
-    required this.message,
-    required this.registrationStep,
-    required this.isEmailVerified,
-    required this.hasStoreDetails,
-  });
-
-  factory RegistrationStepResponse.fromJson(Map<String, dynamic> json) {
-    return RegistrationStepResponse(
-      success: json['success'] ?? false,
-      message: json['message'] ?? '',
-      registrationStep: json['registrationStep'] ?? '',
-      isEmailVerified: json['isEmailVerified'] ?? false,
-      hasStoreDetails: json['hasStoreDetails'] ?? false,
-    );
-  }
-}
 
 class TokenCheckResponse {
   final bool success;
@@ -169,7 +34,6 @@ class TokenCheckResponse {
   }
 }
 
-
 class PasswordValidation {
   final bool isValid;
   final List<String> errors;
@@ -189,10 +53,12 @@ class PasswordValidation {
   }
 }
 
-// Enum for registration steps
+// Updated RegistrationStep enum with all steps
 enum RegistrationStep {
   walletCreation('wallet_creation'),
+  emailVerification('email_verification'),
   storeDetails('store_details'),
+  pickupAddress('pickup_address'),
   completed('completed');
 
   final String value;
@@ -202,12 +68,118 @@ enum RegistrationStep {
     switch (value) {
       case 'wallet_creation':
         return RegistrationStep.walletCreation;
+      case 'email_verification':
+        return RegistrationStep.emailVerification;
       case 'store_details':
         return RegistrationStep.storeDetails;
+      case 'pickup_address':
+        return RegistrationStep.pickupAddress;
       case 'completed':
         return RegistrationStep.completed;
       default:
         return RegistrationStep.walletCreation;
     }
+  }
+
+  bool get canProceedToStoreDetails =>
+      this == RegistrationStep.storeDetails ||
+          this == RegistrationStep.pickupAddress;
+
+  bool get canProceedToPickupAddress =>
+      this == RegistrationStep.pickupAddress;
+
+  bool get isComplete => this == RegistrationStep.completed;
+
+  String get displayName {
+    switch (this) {
+      case RegistrationStep.walletCreation:
+        return 'Create Account';
+      case RegistrationStep.emailVerification:
+        return 'Verify Email';
+      case RegistrationStep.storeDetails:
+        return 'Store Details';
+      case RegistrationStep.pickupAddress:
+        return 'Pickup Address';
+      case RegistrationStep.completed:
+        return 'Completed';
+    }
+  }
+}
+
+class UpdateProfileRequest {
+  String? storeName;
+  String? phoneNumber;
+  String? businessEmail;
+  List<String>? category;
+  String? storeDescription;
+  String? logoPath;
+
+  UpdateProfileRequest({
+    this.storeName,
+    this.phoneNumber,
+    this.businessEmail,
+    this.category,
+    this.storeDescription,
+    this.logoPath,
+  });
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = {};
+    if (storeName != null) data['storeName'] = storeName;
+    if (phoneNumber != null) data['phoneNumber'] = phoneNumber;
+    if (businessEmail != null) data['businessEmail'] = businessEmail;
+    if (category != null) data['category'] = category;
+    if (storeDescription != null) data['storeDescription'] = storeDescription;
+    return data;
+  }
+}
+
+class LoginRequest {
+  final String email;
+  final String password;
+
+  LoginRequest({
+    required this.email,
+    required this.password,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'email': email,
+    'password': password,
+  };
+}
+
+class RefreshTokenRequest {
+  final String refreshToken;
+
+  RefreshTokenRequest({
+    required this.refreshToken,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'refreshToken': refreshToken,
+  };
+}
+
+class RefreshTokenResponse {
+  final bool success;
+  final String message;
+  final String token;
+  final String? refreshToken;
+
+  RefreshTokenResponse({
+    required this.success,
+    required this.message,
+    required this.token,
+    this.refreshToken,
+  });
+
+  factory RefreshTokenResponse.fromJson(Map<String, dynamic> json) {
+    return RefreshTokenResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
+      token: json['token'] ?? '',
+      refreshToken: json['refreshToken'],
+    );
   }
 }

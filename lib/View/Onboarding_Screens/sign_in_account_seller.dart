@@ -1,16 +1,23 @@
 import 'package:afrotierre/View/Onboarding_Screens/create_account_seller.dart';
 import 'package:afrotierre/View/Vendor_Screens/ForgotPasswordScreen.dart';
+import 'package:afrotierre/View/Vendor_Screens/VendorStoreSignupScreen.dart';
 import 'package:afrotierre/View/Vendor_Screens/vendor_bottom_navigation_screen.dart';
 import 'package:afrotierre/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
+import '../../Models/SellerModels/SellerAuthModels.dart';
 import '../../Repository/SellerRepository/SellerLoginandProfileRepo.dart';
 import '../../Services/AppSession.dart';
+import '../../Services/GoogleSignInService.dart';
 import '../../res/Widgets/CustomSnackbar.dart';
+import 'onboarding_screen.dart';
 
 class SignInAccountSellerScreen extends StatefulWidget {
-  const SignInAccountSellerScreen({super.key});
+  final bool isOnboarding;
+  const SignInAccountSellerScreen({super.key,this.isOnboarding = false});
 
   @override
   State<SignInAccountSellerScreen> createState() =>
@@ -20,7 +27,8 @@ class SignInAccountSellerScreen extends StatefulWidget {
 class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
-  bool _rememberMe = false;
+  bool _isGoogleLoading = false;
+  bool _rememberMe = true;
 
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -60,6 +68,115 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
     }
   }
 
+  // ==================== GOOGLE SIGN-IN METHOD ====================
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isGoogleLoading = true;
+    });
+
+    try {
+      print("🟢 Google Sign-In: Getting ID token...");
+      final String? idToken = await GoogleSignInService.signIn();
+
+      if (idToken == null) {
+        print("🔴 Google Sign-In: User cancelled");
+        setState(() {
+          _isGoogleLoading = false;
+        });
+        return;
+      }
+
+      print("🟢 Google Sign-In: Sending to backend...");
+      final response = await _repo.googleAuth(idToken: idToken);
+
+      print("=== GOOGLE LOGIN RESPONSE ===");
+      print("Success: ${response.success}");
+      print("Message: ${response.message}");
+      print("Token: ${response.token}");
+      print("IsNewUser: ${response.isNewUser}");
+      print("RegistrationStep: ${response.seller?.registrationStep}");
+      print("=============================");
+
+      if (!mounted) return;
+
+      if (response.success &&
+          response.token != null &&
+          response.seller != null) {
+        print("🟢 Google Sign-In: Authentication successful");
+
+        // Save session
+        await _session.setSellerSession(response.token!, response.seller!);
+
+        _fetchAndStoreCompleteProfile(response.token!);
+
+        // Save Remember Me preference
+        await _session.setRememberMe(_rememberMe);
+
+        // CustomSnackbar.showSuccess(context, response.message);
+
+        // Navigate based on registration step
+        final step = response.seller?.registrationStep;
+
+        if (step == 'completed') {
+          // User has completed registration, go to dashboard
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const VendorBottomNavigationScreen(),
+            ),
+          );
+        } else {
+          // User needs to complete store details
+          CustomSnackbar.showError(
+            context,
+            'User not registered as a seller. Please Sign up to continue.',
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) =>
+                  // VendorStoreSignupScreen(token: response.token!,
+                  CreateAccountSellerScreen(
+                    // You'll need to pass parameters if needed
+                  ),
+            ),
+          );
+        }
+      } else {
+        // Check if user exists but needs to use email/password
+        if (response.useGoogleAuth == false) {
+          CustomSnackbar.showError(
+            context,
+            'This account uses email/password. Please sign in with your password.',
+          );
+        } else {
+          CustomSnackbar.showError(
+            context,
+            response.message.isNotEmpty
+                ? response.message
+                : 'Google Sign-In failed',
+          );
+        }
+        setState(() {
+          _isGoogleLoading = false;
+        });
+      }
+    } catch (e) {
+      print("❌ Google Sign-In error: $e");
+      CustomSnackbar.showError(
+        context,
+        'Google Sign-In failed: ${e.toString()}',
+      );
+      setState(() {
+        _isGoogleLoading = false;
+      });
+    }
+  }
+
+  // ==================== EMAIL/PASSWORD LOGIN ====================
+
   Future<void> _handleLogin() async {
     // Validate inputs
     if (_emailController.text.trim().isEmpty) {
@@ -82,7 +199,9 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
         password: _passwordController.text,
       );
 
-      if (response.success && response.token != null && response.seller != null) {
+      if (response.success &&
+          response.token != null &&
+          response.seller != null) {
         // Save Remember Me preference
         await _session.setRememberMe(_rememberMe);
 
@@ -104,10 +223,14 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
 
         // Fetch complete profile in the background
         _fetchAndStoreCompleteProfile(response.token!);
-
       } else {
-        // Handle validation errors
-        if (response.errors != null && response.errors!.isNotEmpty) {
+        // Check if user should use Google Sign-In
+        if (response.useGoogleAuth == true) {
+          CustomSnackbar.showError(
+            context,
+            'This account uses Google Sign-In. Please use the "Continue with Google" button.',
+          );
+        } else if (response.errors != null && response.errors!.isNotEmpty) {
           final errorMessage = response.errors!.join('\n');
           CustomSnackbar.showError(context, errorMessage);
         } else {
@@ -115,7 +238,10 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
         }
       }
     } catch (e) {
-      CustomSnackbar.showError(context, 'An unexpected error occurred: ${e.toString()}');
+      CustomSnackbar.showError(
+        context,
+        'An unexpected error occurred: ${e.toString()}',
+      );
       print('Error during login: $e');
     } finally {
       if (mounted) {
@@ -137,14 +263,55 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
         await _session.updateSellerProfile(profileResponse.seller!);
         print('✅ Complete profile stored successfully');
         print('Seller Profile: ${profileResponse.seller!.toJson()}');
-
       } else {
-        print('⚠️ Failed to fetch complete profile: ${profileResponse.message}');
+        print(
+          '⚠️ Failed to fetch complete profile: ${profileResponse.message}',
+        );
       }
     } catch (e) {
       print('❌ Error fetching complete profile: $e');
     }
   }
+
+  Future<void> _openTermsAndConditions() async {
+    // FIX: Use the complete UUID from your original working code
+    const url = 'https://app.termly.io/policy-viewer/policy.html?policyUUID=1c207878-1a91-4f28-b5a8-1c979b8af6dc';
+
+    final controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onProgress: (int progress) {
+            // Update loading indicator
+          },
+          onPageStarted: (String url) {},
+          onPageFinished: (String url) {},
+          onWebResourceError: (WebResourceError error) {
+            if (mounted) {
+              CustomSnackbar.showError(context, 'Failed to load Terms & Conditions');
+            }
+          },
+        ),
+      )
+      ..loadRequest(Uri.parse(url));
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          appBar: AppBar(
+            title: const Text('Terms & Conditions'),
+            leading: IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          body: WebViewWidget(controller: controller),
+        ),
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
@@ -154,269 +321,349 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
+    return WillPopScope(
+      onWillPop: () async {
+        if (widget.isOnboarding) {
+          // If coming from onboarding, allow normal back navigation
+          return true;
+        } else {
+          // If after logout, close the app
+          SystemNavigator.pop();
+          return false;
+        }
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    'Wallet Type:',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    ' Seller',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: primaryColor,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(Icons.shopping_cart_outlined, color: primaryColor),
-                ],
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Login your wallet as a seller',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              const SizedBox(height: 40),
-              const Text(
-                'Your email',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.black),
+            onPressed: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const OnboardingScreen(),
                 ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: InputDecoration(
-                  hintText: 'Enter your email',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor, width: 1.5),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Password',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _passwordController,
-                obscureText: !_isPasswordVisible,
-                decoration: InputDecoration(
-                  hintText: 'Password',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey[300]!),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: primaryColor, width: 1.5),
-                  ),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _isPasswordVisible
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      color: Colors.grey,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _isPasswordVisible = !_isPasswordVisible;
-                      });
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 7),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Remember Me checkbox
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: Checkbox(
-                          value: _rememberMe,
-                          onChanged: (value) {
-                            setState(() {
-                              _rememberMe = value ?? false;
-                            });
-                          },
-                          activeColor: primaryColor,
-                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                      const Text(
-                        'Remember me',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ForgotPasswordScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'Forgot password?',
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
+                    (route) => false, // This removes all previous routes
+              );
 
-              const SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _handleLogin,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: secondaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                  height: 20,
-                  width: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                  ),
-                )
-                    : Text(
-                  'Sign in',
-                  style: TextStyle(fontSize: 16, color: primaryColor),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Don't have an account? ",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  GestureDetector(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const CreateAccountSellerScreen(),
-                        ),
-                      );
-                    },
-                    child: Text(
-                      'Sign up',
+            },
+          ),
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 20),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Wallet Type:',
                       style: TextStyle(
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: secondaryColor,
+                      ),
+                    ),
+                    Text(
+                      ' Seller',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: primaryColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(Icons.shopping_cart_outlined, color: primaryColor),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Login your wallet as a seller',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+                const SizedBox(height: 40),
+                const Text(
+                  'Your email',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    hintText: 'Enter your email',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primaryColor, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  'Password',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _passwordController,
+                  obscureText: !_isPasswordVisible,
+                  decoration: InputDecoration(
+                    hintText: 'Password',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.grey[300]!),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: primaryColor, width: 1.5),
+                    ),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                        color: Colors.grey,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Remember Me checkbox
+                    Row(
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: _rememberMe,
+                            onChanged: (value) {
+                              setState(() {
+                                _rememberMe = value ?? false;
+                              });
+                            },
+                            activeColor: primaryColor,
+                            materialTapTargetSize:
+                                MaterialTapTargetSize.shrinkWrap,
+                          ),
+                        ),
+                        const Text(
+                          'Remember me',
+                          style: TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ForgotPasswordScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Forgot password?',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 40),
+
+                // Sign In Button
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _handleLogin,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: secondaryColor,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.black,
+                              ),
+                            ),
+                          )
+                          : Text(
+                            'Sign in',
+                            style: TextStyle(fontSize: 16, color: primaryColor),
+                          ),
+                ),
+
+                SizedBox(height: 20,),
+
+                // ── Terms & Conditions ──
+                Center(
+                  child: GestureDetector(
+                    onTap: _openTermsAndConditions,
+                    child: RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.grey),
+                        children: [
+                          const TextSpan(
+                              text: 'By signing in, you agree to our '),
+                          TextSpan(
+                            text: 'Terms & Conditions',
+                            style: TextStyle(
+                              color: primaryColor,
+                              fontWeight: FontWeight.w600,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 32),
-              const Row(
-                children: [
-                  Expanded(child: Divider()),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text('or', style: TextStyle(color: Colors.grey)),
-                  ),
-                  Expanded(child: Divider()),
-                ],
-              ),
-              const SizedBox(height: 32),
-              _buildSocialButton(
-                'Continue with Google',
-                Image.asset('assets/google.png', height: 20),
-                    () {
-                  // TODO: Implement Google sign in
-                  CustomSnackbar.showInfo(context, 'Google sign in coming soon');
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildSocialButton(
-                'Continue with Apple',
-                Image.asset('assets/apple.png', height: 20),
-                    () {
-                  // TODO: Implement Apple sign in
-                  CustomSnackbar.showInfo(context, 'Apple sign in coming soon');
-                },
-              ),
-              const SizedBox(height: 20),
-            ],
+                ),
+                const SizedBox(height: 24),
+
+                // Sign Up Link
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      "Don't have an account? ",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder:
+                                (context) => const CreateAccountSellerScreen(),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'Sign up',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: secondaryColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // Divider
+                const Row(
+                  children: [
+                    Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Text('or', style: TextStyle(color: Colors.grey)),
+                    ),
+                    Expanded(child: Divider()),
+                  ],
+                ),
+                const SizedBox(height: 32),
+
+                // Google Sign In Button
+                _buildSocialButton(
+                  'Continue with Google',
+                  Image.asset('assets/google.png', height: 20),
+                  _handleGoogleSignIn,
+                  isLoading: _isGoogleLoading,
+                ),
+                const SizedBox(height: 16),
+
+                // Apple Sign In Button (placeholder)
+                _buildSocialButton(
+                  'Continue with Apple',
+                  Image.asset('assets/apple.png', height: 20),
+                  () {
+                    CustomSnackbar.showInfo(
+                      context,
+                      'Apple Sign-In coming soon',
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-
-
-  Widget _buildSocialButton(String text, Widget icon, VoidCallback onPressed) {
+  Widget _buildSocialButton(
+    String text,
+    Widget icon,
+    VoidCallback onPressed, {
+    bool isLoading = false,
+  }) {
     return OutlinedButton(
-      onPressed: onPressed,
+      onPressed: isLoading ? null : onPressed,
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         side: BorderSide(color: Colors.grey[300]!),
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          icon,
-          const SizedBox(width: 12),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: Colors.black,
-            ),
-          ),
-        ],
-      ),
+      child:
+          isLoading
+              ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                ),
+              )
+              : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  icon,
+                  const SizedBox(width: 12),
+                  Text(
+                    text,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black,
+                    ),
+                  ),
+                ],
+              ),
     );
   }
 }

@@ -52,6 +52,11 @@ dependencies:
   flutter_stripe:
   intl_phone_field:
   google_sign_in: 6.2.1
+  url_launcher:
+  webview_flutter:
+  open_file:
+  file_picker:
+  permission_handler:
 #  libphonenumber:
 
 dev_dependencies:
@@ -64,6 +69,15 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^5.0.0
+  flutter_launcher_icons:
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/logo.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/logo.png"
+  remove_alpha_ios: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/spec

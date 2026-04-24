@@ -36,18 +36,39 @@ class SellerProductsRepo {
     try {
       final uri = Uri.parse(_buildUrl(ApiConstants.createProduct));
 
+      // Print request data for debugging
+      print('📦 Creating product:');
+      print('   Name: ${request.name}');
+      print('   Price: ${request.price}');
+      print('   Discounted Price: ${request.discountedPrice}');
+      print('   Stock: ${request.stock}');
+      print('   Category: ${request.category}');
+      print('   Colors: ${request.colors}');
+      print('   Attributes: ${request.attributes}');
+      print('   Images: ${images?.length ?? 0}');
+      print('   Is Draft: ${request.draft}');
+
       if (images != null && images.isNotEmpty) {
         // Multipart request for file upload
         var multipartRequest = http.MultipartRequest('POST', uri);
         multipartRequest.headers['Authorization'] = 'Bearer $_authToken';
 
-        // Add text fields
+        // Add text fields - send discountedPrice as string but ensure it's correct
         multipartRequest.fields['name'] = request.name;
         multipartRequest.fields['description'] = request.description;
         multipartRequest.fields['price'] = request.price.toString();
-        if (request.discountedPrice != null) {
-          multipartRequest.fields['discountedPrice'] = request.discountedPrice.toString();
+
+        // IMPORTANT: Only send discountedPrice if it has a value and is less than price
+        if (request.discountedPrice != null && request.discountedPrice! > 0) {
+          // Ensure discountedPrice is less than price
+          if (request.discountedPrice! < request.price) {
+            multipartRequest.fields['discountedPrice'] = request.discountedPrice.toString();
+            print('   Sending discountedPrice: ${request.discountedPrice}');
+          } else {
+            print('   Warning: discountedPrice (${request.discountedPrice}) >= price (${request.price}), skipping');
+          }
         }
+
         multipartRequest.fields['stock'] = request.stock.toString();
         multipartRequest.fields['category'] = request.category;
         multipartRequest.fields['colors'] = jsonEncode(request.colors);
@@ -55,6 +76,8 @@ class SellerProductsRepo {
         multipartRequest.fields['sizes'] = jsonEncode(request.sizes);
         multipartRequest.fields['materials'] = jsonEncode(request.materials);
         multipartRequest.fields['draft'] = request.draft.toString();
+        print('   Sending draft value: ${request.draft.toString()}'); // Debug print
+
 
         if (request.status != null) {
           multipartRequest.fields['status'] = request.status!;
@@ -75,36 +98,92 @@ class SellerProductsRepo {
           multipartRequest.files.add(multipartFile);
         }
 
+        print('📤 Sending multipart request with fields:');
+        multipartRequest.fields.forEach((key, value) {
+          print('   $key: $value');
+        });
+
         final streamedResponse = await multipartRequest.send();
         final response = await http.Response.fromStream(streamedResponse);
+
+        print('Create product response status: ${response.statusCode}');
+        print('Create product response body: ${response.body}');
 
         if (response.statusCode == 201 || response.statusCode == 200) {
           final Map<String, dynamic> data = jsonDecode(response.body);
           return ProductResponse.fromJson(data);
         } else {
           final Map<String, dynamic> errorData = jsonDecode(response.body);
+
+          // Extract error message properly
+          String errorMessage = errorData['message'] ?? 'Failed to create product';
+
+          // Check for errors array
+          if (errorData['errors'] != null && errorData['errors'] is List) {
+            final errors = errorData['errors'] as List;
+            if (errors.isNotEmpty) {
+              final firstError = errors[0];
+              if (firstError is Map && firstError['msg'] != null) {
+                errorMessage = firstError['msg'];
+              }
+            }
+          }
+
+          print('📦 API Response: success=false, message=$errorMessage');
+
           return ProductResponse(
             success: false,
-            message: errorData['message'] ?? 'Failed to create product',
+            message: errorMessage,
             error: errorData['error'],
           );
         }
       } else {
         // Regular JSON request
+        final body = request.toJson();
+
+        // Ensure discountedPrice is only included if valid
+        if (body['discountedPrice'] != null) {
+          final discPrice = body['discountedPrice'] as num?;
+          final origPrice = body['price'] as num?;
+          if (discPrice != null && origPrice != null && discPrice >= origPrice) {
+            // Remove discountedPrice if it's invalid
+            body.remove('discountedPrice');
+            print('   Removed invalid discountedPrice (${discPrice} >= ${origPrice})');
+          }
+        }
+
         final response = await client.post(
           uri,
           headers: _getHeaders(),
-          body: jsonEncode(request.toJson()),
+          body: jsonEncode(body),
         );
+
+        print('Create product response status: ${response.statusCode}');
+        print('Create product response body: ${response.body}');
 
         if (response.statusCode == 201 || response.statusCode == 200) {
           final Map<String, dynamic> data = jsonDecode(response.body);
           return ProductResponse.fromJson(data);
         } else {
           final Map<String, dynamic> errorData = jsonDecode(response.body);
+
+          String errorMessage = errorData['message'] ?? 'Failed to create product';
+
+          if (errorData['errors'] != null && errorData['errors'] is List) {
+            final errors = errorData['errors'] as List;
+            if (errors.isNotEmpty) {
+              final firstError = errors[0];
+              if (firstError is Map && firstError['msg'] != null) {
+                errorMessage = firstError['msg'];
+              }
+            }
+          }
+
+          print('📦 API Response: success=false, message=$errorMessage');
+
           return ProductResponse(
             success: false,
-            message: errorData['message'] ?? 'Failed to create product',
+            message: errorMessage,
             error: errorData['error'],
           );
         }
@@ -120,7 +199,6 @@ class SellerProductsRepo {
       );
     }
   }
-
   // Get seller products with filters
   Future<ProductResponse> getSellerProducts({
     String? status,
@@ -148,6 +226,9 @@ class SellerProductsRepo {
         uri,
         headers: _getHeaders(),
       );
+
+      print('Response status code: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -208,66 +289,160 @@ class SellerProductsRepo {
     required String productId,
     required UpdateProductRequest request,
     List<File>? newImages,
+    List<String>? imagesToDelete, // Add this parameter
   }) async {
     try {
       final uri = Uri.parse(_buildUrl('${ApiConstants.updateProduct}/$productId'));
 
-      if (newImages != null && newImages.isNotEmpty) {
+      print('📦 Updating product:');
+      print('   Product ID: $productId');
+      print('   Name: ${request.name}');
+      print('   Price: ${request.price}');
+      print('   Discounted Price: ${request.discountedPrice}');
+      print('   Stock: ${request.stock}');
+      print('   Category: ${request.category}');
+      print('   Draft: ${request.draft}');
+      print('   New Images: ${newImages?.length ?? 0}');
+      print('   Images to delete: ${imagesToDelete?.length ?? 0}');
+
+      if ((newImages != null && newImages.isNotEmpty) ||
+          (request.image != null) ||
+          (imagesToDelete != null && imagesToDelete.isNotEmpty)) {
         // Multipart request for file upload
         var multipartRequest = http.MultipartRequest('PUT', uri);
         multipartRequest.headers['Authorization'] = 'Bearer $_authToken';
 
         // Add text fields
-        final requestJson = request.toJson();
-        requestJson.forEach((key, value) {
-          if (value is List || value is Map) {
-            multipartRequest.fields[key] = jsonEncode(value);
-          } else if (value != null) {
-            multipartRequest.fields[key] = value.toString();
-          }
-        });
+        if (request.name != null) {
+          multipartRequest.fields['name'] = request.name!;
+        }
+        if (request.description != null) {
+          multipartRequest.fields['description'] = request.description!;
+        }
+        if (request.price != null) {
+          multipartRequest.fields['price'] = request.price.toString();
+        }
+        if (request.discountedPrice != null) {
+          multipartRequest.fields['discountedPrice'] = request.discountedPrice.toString();
+        }
+        if (request.stock != null) {
+          multipartRequest.fields['stock'] = request.stock.toString();
+        }
+        if (request.category != null) {
+          multipartRequest.fields['category'] = request.category!;
+        }
+        if (request.colors != null) {
+          multipartRequest.fields['colors'] = jsonEncode(request.colors);
+        }
+        if (request.attributes != null) {
+          multipartRequest.fields['attributes'] = jsonEncode(request.attributes);
+        }
+        if (request.sizes != null) {
+          multipartRequest.fields['sizes'] = jsonEncode(request.sizes);
+        }
+        if (request.materials != null) {
+          multipartRequest.fields['materials'] = jsonEncode(request.materials);
+        }
+        if (request.status != null) {
+          multipartRequest.fields['status'] = request.status!;
+        }
+        if (request.image != null) {
+          multipartRequest.fields['image'] = request.image!;
+        }
+        if (request.draft != null) {
+          multipartRequest.fields['draft'] = request.draft.toString();
+          print('   Sending draft value: ${request.draft.toString()}');
+        }
+
+        // ✅ IMPORTANT: Send images to delete
+        if (imagesToDelete != null && imagesToDelete.isNotEmpty) {
+          multipartRequest.fields['imagesToDelete'] = jsonEncode(imagesToDelete);
+          print('   Images to delete: $imagesToDelete');
+        }
 
         // Add new images
-        for (var file in newImages) {
-          final mimeType = _getMimeType(file.path);
-          final multipartFile = await http.MultipartFile.fromPath(
-            'images',
-            file.path,
-            contentType: MediaType(mimeType.split('/')[0], mimeType.split('/')[1]),
-          );
-          multipartRequest.files.add(multipartFile);
+        if (newImages != null) {
+          for (var file in newImages) {
+            final mimeType = _getMimeType(file.path);
+            final multipartFile = await http.MultipartFile.fromPath(
+              'images',
+              file.path,
+              contentType: MediaType(mimeType.split('/')[0], mimeType.split('/')[1]),
+            );
+            multipartRequest.files.add(multipartFile);
+          }
         }
+
+        print('📤 Sending multipart update request with fields:');
+        multipartRequest.fields.forEach((key, value) {
+          print('   $key: $value');
+        });
 
         final streamedResponse = await multipartRequest.send();
         final response = await http.Response.fromStream(streamedResponse);
 
-        if (response.statusCode == 200) {
-          final Map<String, dynamic> data = jsonDecode(response.body);
-          return ProductResponse.fromJson(data);
-        } else {
-          final Map<String, dynamic> errorData = jsonDecode(response.body);
-          return ProductResponse(
-            success: false,
-            message: errorData['message'] ?? 'Failed to update product',
-            error: errorData['error'],
-          );
-        }
-      } else {
-        // Regular JSON request
-        final response = await client.put(
-          uri,
-          headers: _getHeaders(),
-          body: jsonEncode(request.toJson()),
-        );
+        print('Update product response status: ${response.statusCode}');
+        print('Update product response body: ${response.body}');
 
         if (response.statusCode == 200) {
           final Map<String, dynamic> data = jsonDecode(response.body);
           return ProductResponse.fromJson(data);
         } else {
           final Map<String, dynamic> errorData = jsonDecode(response.body);
+          String errorMessage = errorData['message'] ?? 'Failed to update product';
+
+          if (errorData['errors'] != null && errorData['errors'] is List) {
+            final errors = errorData['errors'] as List;
+            if (errors.isNotEmpty) {
+              final firstError = errors[0];
+              if (firstError is Map && firstError['msg'] != null) {
+                errorMessage = firstError['msg'];
+              }
+            }
+          }
+
           return ProductResponse(
             success: false,
-            message: errorData['message'] ?? 'Failed to update product',
+            message: errorMessage,
+            error: errorData['error'],
+          );
+        }
+      } else {
+        // Regular JSON request (no new images)
+        final body = request.toJson();
+
+        print('📤 Sending JSON update request with body:');
+        print(jsonEncode(body));
+
+        final response = await client.put(
+          uri,
+          headers: _getHeaders(),
+          body: jsonEncode(body),
+        );
+
+        print('Update product response status: ${response.statusCode}');
+        print('Update product response body: ${response.body}');
+
+        if (response.statusCode == 200) {
+          final Map<String, dynamic> data = jsonDecode(response.body);
+          return ProductResponse.fromJson(data);
+        } else {
+          final Map<String, dynamic> errorData = jsonDecode(response.body);
+          String errorMessage = errorData['message'] ?? 'Failed to update product';
+
+          if (errorData['errors'] != null && errorData['errors'] is List) {
+            final errors = errorData['errors'] as List;
+            if (errors.isNotEmpty) {
+              final firstError = errors[0];
+              if (firstError is Map && firstError['msg'] != null) {
+                errorMessage = firstError['msg'];
+              }
+            }
+          }
+
+          return ProductResponse(
+            success: false,
+            message: errorMessage,
             error: errorData['error'],
           );
         }
@@ -327,6 +502,8 @@ class SellerProductsRepo {
       );
     }
   }
+
+
   // Archive product (soft delete)
   Future<ProductResponse> archiveProduct(String productId) async {
     try {

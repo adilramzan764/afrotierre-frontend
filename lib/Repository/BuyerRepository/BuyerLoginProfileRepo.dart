@@ -1,12 +1,13 @@
 // lib/repositories/buyer_login_profile_repo.dart
+
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import '../../Constants/ApiConstants.dart';
+import '../../Models/BuyerModels/BuyerAuthModels.dart';
 import '../../Models/BuyerModels/BuyerLoginandProfileModels.dart';
 import '../../res/Widgets/CustomSnackbar.dart';
-
 
 class BuyerLoginProfileRepo {
   final String baseUrl = ApiConstants.baseUrlBuyer;
@@ -31,20 +32,227 @@ class BuyerLoginProfileRepo {
     return headers;
   }
 
-  // Handle API response
-  dynamic _handleResponse(http.Response response, BuildContext? context) {
-    final data = jsonDecode(response.body);
-
-    if (response.statusCode >= 200 && response.statusCode < 300) {
-      return data;
-    } else {
-      final message = data['message'] ?? 'Request failed';
-      if (context != null) {
-        CustomSnackbar.showError(context, message);
-      }
-      throw Exception(message);
+  // Helper method to lookup MIME type
+  String? _lookupMimeType(String path) {
+    final extension = path.split('.').last.toLowerCase();
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg';
     }
   }
+
+  // ==================== APPLE AUTH METHODS ====================
+
+  /// Apple Sign-In / Sign-Up for Buyers
+  Future<AuthResponse> appleAuth({
+    required String identityToken,
+    Map<String, String>? fullName,
+    String? email,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl${ApiConstants.appleAuthBuyer}'),
+        headers: _getHeaders(),
+        body: jsonEncode({
+          'identityToken': identityToken,
+          if (fullName != null) 'fullName': fullName,
+          if (email != null) 'email': email,
+        }),
+      );
+
+      print('Apple Auth Response Status: ${response.statusCode}');
+      print('Apple Auth Response Body: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Apple authentication failed',
+          useAppleAuth: data['useAppleAuth'],
+        );
+      }
+    } catch (e) {
+      print('Apple auth error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Link Apple account to existing email/password account
+  Future<AuthResponse> linkAppleAccount({
+    required String token,
+    required String identityToken,
+    Map<String, String>? fullName,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl${ApiConstants.linkAppleBuyer}'),
+        headers: _getHeaders(token: token),
+        body: jsonEncode({
+          'identityToken': identityToken,
+          if (fullName != null) 'fullName': fullName,
+        }),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to link Apple account',
+        );
+      }
+    } catch (e) {
+      print('Link Apple account error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Unlink Apple account
+  Future<AuthResponse> unlinkAppleAccount({
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl${ApiConstants.unlinkAppleBuyer}'),
+        headers: _getHeaders(token: token),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to unlink Apple account',
+        );
+      }
+    } catch (e) {
+      print('Unlink Apple account error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== GOOGLE AUTH METHODS ====================
+
+  /// Google Sign-In / Sign-Up for Buyers
+  Future<AuthResponse> googleAuth({
+    required String idToken,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl${ApiConstants.googleAuthBuyer}'),
+        headers: _getHeaders(),
+        body: jsonEncode({'idToken': idToken}),
+      );
+
+      print('Google Auth Response Status: ${response.statusCode}');
+      print('Google Auth Response Body: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Google authentication failed',
+          useGoogleAuth: data['useGoogleAuth'],
+        );
+      }
+    } catch (e) {
+      print('Google auth error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Link Google account to existing email/password account
+  Future<AuthResponse> linkGoogleAccount({
+    required String token,
+    required String idToken,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl${ApiConstants.linkGoogleBuyer}'),
+        headers: _getHeaders(token: token),
+        body: jsonEncode({'idToken': idToken}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to link Google account',
+        );
+      }
+    } catch (e) {
+      print('Link Google account error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Unlink Google account
+  Future<AuthResponse> unlinkGoogleAccount({
+    required String token,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl${ApiConstants.unlinkGoogleBuyer}'),
+        headers: _getHeaders(token: token),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to unlink Google account',
+        );
+      }
+    } catch (e) {
+      print('Unlink Google account error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== EXISTING LOGIN METHODS ====================
 
   // Login buyer
   Future<BuyerLoginResponse> login(
@@ -53,7 +261,7 @@ class BuyerLoginProfileRepo {
       }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl${ApiConstants.login}'), // Fixed: using string constant correctly
+        Uri.parse('$baseUrl${ApiConstants.login}'),
         headers: _getHeaders(),
         body: jsonEncode(request.toJson()),
       );
@@ -66,7 +274,25 @@ class BuyerLoginProfileRepo {
         }
         return BuyerLoginResponse.fromJson(data);
       } else {
-        if (context != null) {
+        // Check if user should use Google Sign-In
+        if (data['useGoogleAuth'] == true) {
+          if (context != null) {
+            CustomSnackbar.showError(
+                context,
+                'This account uses Google Sign-In. Please use "Continue with Google" button.'
+            );
+          }
+        }
+        // Check if user should use Apple Sign-In
+        else if (data['useAppleAuth'] == true) {
+          if (context != null) {
+            CustomSnackbar.showError(
+                context,
+                'This account uses Apple Sign-In. Please use "Continue with Apple" button.'
+            );
+          }
+        }
+        else if (context != null) {
           CustomSnackbar.showError(context, data['message'] ?? 'Login failed');
         }
         throw Exception(data['message'] ?? 'Login failed');
@@ -86,7 +312,7 @@ class BuyerLoginProfileRepo {
       }) async {
     try {
       final response = await http.get(
-        Uri.parse('$baseUrl${ApiConstants.getProfile}'), // Fixed: using string constant correctly
+        Uri.parse('$baseUrl${ApiConstants.getProfile}'),
         headers: _getHeaders(token: token),
       );
 
@@ -108,7 +334,7 @@ class BuyerLoginProfileRepo {
     }
   }
 
-// Update buyer profile with multipart form data (supports image upload)
+  // Update buyer profile with multipart form data (supports image upload)
   Future<BuyerProfile> updateProfile(
       String token,
       Map<String, dynamic> profileData, {
@@ -119,10 +345,8 @@ class BuyerLoginProfileRepo {
       var uri = Uri.parse('$baseUrl${ApiConstants.updateProfile}');
       var request = http.MultipartRequest('PUT', uri);
 
-      // Add headers
       request.headers['Authorization'] = 'Bearer $token';
 
-      // Add text fields
       profileData.forEach((key, value) {
         if (value != null) {
           if (value is Map || value is List) {
@@ -133,22 +357,18 @@ class BuyerLoginProfileRepo {
         }
       });
 
-      // Add profile image if provided
-      if (profileImage != null) {
-        if (await profileImage.exists()) {
-          final mimeTypeData = _lookupMimeType(profileImage.path)?.split('/');
-          var imageFile = await http.MultipartFile.fromPath(
-            'profilePicture',
-            profileImage.path,
-            contentType: mimeTypeData != null
-                ? http.MediaType(mimeTypeData[0], mimeTypeData[1])
-                : http.MediaType('image', 'jpeg'),
-          );
-          request.files.add(imageFile);
-        }
+      if (profileImage != null && await profileImage.exists()) {
+        final mimeTypeData = _lookupMimeType(profileImage.path)?.split('/');
+        var imageFile = await http.MultipartFile.fromPath(
+          'profilePicture',
+          profileImage.path,
+          contentType: mimeTypeData != null
+              ? http.MediaType(mimeTypeData[0], mimeTypeData[1])
+              : http.MediaType('image', 'jpeg'),
+        );
+        request.files.add(imageFile);
       }
 
-      // Send request
       final response = await request.send();
       final responseData = await response.stream.bytesToString();
       final data = jsonDecode(responseData);
@@ -172,24 +392,6 @@ class BuyerLoginProfileRepo {
     }
   }
 
-// Helper method to lookup MIME type
-  String? _lookupMimeType(String path) {
-    final extension = path.split('.').last.toLowerCase();
-    switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      default:
-        return 'image/jpeg';
-    }
-  }
-
   // Submit profile details (after email verification)
   Future<BuyerLoginResponse> submitProfileDetails(
       String token,
@@ -198,7 +400,7 @@ class BuyerLoginProfileRepo {
       }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl${ApiConstants.submitprofile}'), // Fixed: using string constant correctly
+        Uri.parse('$baseUrl${ApiConstants.submitprofile}'),
         headers: _getHeaders(token: token),
         body: jsonEncode(profileData),
       );
@@ -231,7 +433,7 @@ class BuyerLoginProfileRepo {
       }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl${ApiConstants.checkToken}'), // Fixed: using string constant correctly
+        Uri.parse('$baseUrl${ApiConstants.checkToken}'),
         headers: _getHeaders(token: token),
       );
 
@@ -265,7 +467,7 @@ class BuyerLoginProfileRepo {
       }) async {
     try {
       final response = await http.post(
-        Uri.parse('$baseUrl${ApiConstants.refreshToken_buyer}'), // Using refresh token endpoint
+        Uri.parse('$baseUrl${ApiConstants.refreshToken_buyer}'),
         headers: _getHeaders(),
         body: jsonEncode(request.toJson()),
       );
@@ -291,10 +493,12 @@ class BuyerLoginProfileRepo {
     }
   }
 
+  // ==================== TOKEN MANAGEMENT METHODS ====================
+
   // Auto-refresh token if needed
   Future<String?> autoRefreshTokenIfNeeded(
       String token,
-      String refreshTokenValue,      {
+      String refreshTokenValue, {
         BuildContext? context,
       }) async {
     try {
@@ -337,6 +541,48 @@ class BuyerLoginProfileRepo {
         CustomSnackbar.showError(context, 'Session error: ${e.toString()}');
       }
       return null;
+    }
+  }
+
+  Future<BuyerRegistrationStepResponse> getRegistrationStep(String token) async {
+    try {
+      final url = Uri.parse('$baseUrl${ApiConstants.getRegistrationStep}');
+
+      final response = await http.get(
+        url,
+        headers: _getHeaders(token: token),
+      );
+
+      print('📡 GET Registration Step URL: $url');
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return BuyerRegistrationStepResponse.fromJson(data);
+      } else {
+        return BuyerRegistrationStepResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to get registration step',
+          registrationStep: '',
+          isEmailVerified: false,
+          hasProfileDetails: false,
+          isGoogleUser: false,
+          isAppleUser: false,
+        );
+      }
+    } catch (e) {
+      print('Error getting registration step: $e');
+      return BuyerRegistrationStepResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+        registrationStep: '',
+        isEmailVerified: false,
+        hasProfileDetails: false,
+        isGoogleUser: false,
+        isAppleUser: false,
+      );
     }
   }
 
@@ -418,7 +664,8 @@ class BuyerLoginProfileRepo {
     }
   }
 
-  // Convenience methods for common operations
+  // ==================== CONVENIENCE METHODS ====================
+
   Future<http.Response> authenticatedGet(
       String endpoint,
       String token,
@@ -481,5 +728,10 @@ class BuyerLoginProfileRepo {
       refreshToken,
       context: context,
     );
+  }
+
+  // Dispose method for cleanup
+  void dispose() {
+    // Close any open connections if needed
   }
 }

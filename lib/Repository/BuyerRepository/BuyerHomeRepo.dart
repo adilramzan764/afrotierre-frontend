@@ -219,6 +219,7 @@ class BuyerHomeRepo {
   }
 
   // Get Category Products
+  // Get Category Products - FIXED VERSION
   Future<CategoryProductsResponse> getCategoryProducts({
     required String categoryId,
     int page = 1,
@@ -227,10 +228,15 @@ class BuyerHomeRepo {
     BuildContext? context,
   }) async {
     try {
-      final uri = Uri.parse('$baseUrl/categories/$categoryId/products').replace(queryParameters: {
+      // URL encode the categoryId to handle special characters like '/'
+      final encodedCategoryId = Uri.encodeComponent(categoryId);
+
+      final uri = Uri.parse('$baseUrl/categories/$encodedCategoryId/products').replace(queryParameters: {
         'page': page.toString(),
         'limit': limit.toString(),
       });
+
+      print('Fetching category products from: $uri'); // Debug log
 
       final response = await http.get(
         uri,
@@ -249,7 +255,8 @@ class BuyerHomeRepo {
       }
     } catch (e) {
       if (context != null) {
-        CustomSnackbar.showError(context, 'Network error: ${e.toString()}');
+        // Don't show error for category product fetching failures - it's not critical
+        print('Error fetching category products: $e');
       }
       throw Exception('Network error: ${e.toString()}');
     }

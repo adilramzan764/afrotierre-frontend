@@ -1,18 +1,20 @@
 import 'package:afrotierre/View/Buyers_Screens/ProductListScreen.dart';
 import 'package:afrotierre/View/Buyers_Screens/cart_screen.dart';
 import 'package:afrotierre/View/Buyers_Screens/categories_screen.dart';
-import 'package:afrotierre/View/Buyers_Screens/filters_screen.dart';
 import 'package:afrotierre/View/Buyers_Screens/product_details_screen.dart';
 import 'package:afrotierre/View/Buyers_Screens/search_screen.dart';
 import 'package:afrotierre/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:provider/provider.dart';
 
 import '../../Models/BuyerModels/BuyerHomeModels.dart';
+import '../../Services/NotificationProvider.dart';
 import '../../Repository/BuyerRepository/BuyerHomeRepo.dart';
 import '../../Services/AppSession.dart';
 import '../../res/Widgets/CustomSnackbar.dart';
 import '../../res/Widgets/ShimmerBox.dart';
+import 'notification_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -21,7 +23,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _currentBanner = 0;
   final PageController _bannerController = PageController();
   final BuyerHomeRepo _homeRepo = BuyerHomeRepo();
@@ -32,15 +34,28 @@ class _HomeScreenState extends State<HomeScreen> {
   HomeData? _homeData;
   String _userName = 'Guest';
 
-  // Cache for category products
-  final Map<String, List<ProductItem>> _categoryProductsCache = {};
-  final Map<String, bool> _categoryLoadingCache = {};
-
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUserData();
     _fetchHomeData();
+    _loadNotificationCount();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _bannerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Refresh notification count when app resumes
+      _loadNotificationCount();
+    }
   }
 
   void _loadUserData() {
@@ -48,6 +63,14 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _userName = buyerProfile?.fullName?.split(' ').first ?? 'Guest';
     });
+  }
+
+  Future<void> _loadNotificationCount() async {
+    // Only load if user is logged in
+    if (_session.isLoggedIn) {
+      final provider = Provider.of<NotificationProvider>(context, listen: false);
+      await provider.fetchNotifications(refresh: true);
+    }
   }
 
   Future<void> _fetchHomeData() async {
@@ -68,15 +91,6 @@ class _HomeScreenState extends State<HomeScreen> {
           _isLoading = false;
         });
         print('Home data loaded successfully');
-        print(
-          'Banners: ${_homeData!.banners.length}, Categories: ${_homeData!.categories.length}, Flash Sale: ${_homeData!.flashSale.length}, New Arrivals: ${_homeData!.newArrivals.length}',
-        );
-        print(
-          'Banner Images: ${_homeData!.banners.map((b) => b.imageUrl).toList()}',
-        );
-
-        // Pre-fetch products for each category
-        _prefetchCategoryProducts();
       }
     } catch (e) {
       if (mounted) {
@@ -89,56 +103,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _prefetchCategoryProducts() async {
-    if (_homeData == null) return;
-
-    for (var category in _homeData!.categories) {
-      _fetchCategoryProducts(category.name);
-    }
-  }
-
-  Future<void> _fetchCategoryProducts(String categoryName) async {
-    // Don't fetch if already cached or currently loading
-    if (_categoryProductsCache.containsKey(categoryName) ||
-        _categoryLoadingCache[categoryName] == true) {
-      return;
-    }
-
-    setState(() {
-      _categoryLoadingCache[categoryName] = true;
-    });
-
-    try {
-      final token = _session.authToken;
-      final response = await _homeRepo.getCategoryProducts(
-        categoryId: categoryName,
-        token: token,
-        page: 1,
-        limit: 6,
-        // Fetch only 6 products for preview
-        context: context,
-      );
-
-      if (mounted && response.success) {
-        setState(() {
-          _categoryProductsCache[categoryName] = response.data.products;
-          _categoryLoadingCache[categoryName] = false;
-        });
-      } else {
-        setState(() {
-          _categoryLoadingCache[categoryName] = false;
-        });
-      }
-    } catch (e) {
-      print('Error fetching products for category $categoryName: $e');
-      setState(() {
-        _categoryLoadingCache[categoryName] = false;
-      });
-    }
-  }
-
   void _handleCategoryTap(String categoryName) {
-    // Navigate to ProductListScreen with category filter
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -161,8 +126,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (context) => ProductListScreen(category: banner.actionValue),
+            builder: (context) => ProductListScreen(category: banner.actionValue),
           ),
         );
         break;
@@ -170,9 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder:
-                (context) =>
-                ProductDetailsScreen(productId: banner.actionValue ?? ''),
+            builder: (context) => ProductDetailsScreen(productId: banner.actionValue ?? ''),
           ),
         );
         break;
@@ -181,27 +143,15 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _toggleWishlist(ProductItem product, int index, bool isFlashSale) async {
-    // TODO: Call wishlist API
-  }
-
-  @override
-  void dispose() {
-    _bannerController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
 
     // Responsive values based on screen width
     final horizontalPadding = screenWidth < 380 ? 12.0 : (screenWidth < 600 ? 16.0 : 24.0);
     final bannerHeight = screenWidth < 380 ? 150.0 : (screenWidth < 600 ? 175.0 : 220.0);
     final productCardWidth = screenWidth < 380 ? 140.0 : (screenWidth < 600 ? 155.0 : 200.0);
     final productImageHeight = screenWidth < 380 ? 130.0 : (screenWidth < 600 ? 145.0 : 180.0);
-    final categorySize = screenWidth < 380 ? 60.0 : (screenWidth < 600 ? 70.0 : 90.0);
     final categoryTextSize = screenWidth < 380 ? 10.0 : (screenWidth < 600 ? 12.0 : 14.0);
     final sectionTitleSize = screenWidth < 380 ? 16.0 : (screenWidth < 600 ? 18.0 : 22.0);
     final gridCrossAxisCount = screenWidth < 380 ? 2 : (screenWidth < 600 ? 2 : (screenWidth > 900 ? 4 : 3));
@@ -242,17 +192,17 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                if (_isLoading) _buildSkeletonLoader(
-                  horizontalPadding: horizontalPadding,
-                  bannerHeight: bannerHeight,
-                  categoryListHeight: categoryListHeight,
-                  flashSaleHeight: flashSaleHeight,
-                  productImageHeight: productImageHeight,
-                  productCardWidth: productCardWidth,
-                  gridCrossAxisCount: gridCrossAxisCount,
-                  gridChildAspectRatio: gridChildAspectRatio,
-                )
-
+                if (_isLoading)
+                  _buildSkeletonLoader(
+                    horizontalPadding: horizontalPadding,
+                    bannerHeight: bannerHeight,
+                    categoryListHeight: categoryListHeight,
+                    flashSaleHeight: flashSaleHeight,
+                    productImageHeight: productImageHeight,
+                    productCardWidth: productCardWidth,
+                    gridCrossAxisCount: gridCrossAxisCount,
+                    gridChildAspectRatio: gridChildAspectRatio,
+                  )
                 else if (_homeData != null) ...[
                   // Banner carousel
                   if (_homeData!.banners.isNotEmpty)
@@ -272,12 +222,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _buildSectionHeader(
                       title: 'Categories',
                       sectionTitleSize: sectionTitleSize,
-                      onSeeAll:
-                          () => Navigator.push(
+                      onSeeAll: () => Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => const CategoriesScreen(),
-                        ),
+                        MaterialPageRoute(builder: (context) => const CategoriesScreen()),
                       ),
                     ),
                   ),
@@ -299,17 +246,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         title: 'Flash Sale',
                         sectionTitleSize: sectionTitleSize,
                         badge: '${_homeData!.flashSale.length} items',
-                        onSeeAll: () {
-                          print('See all flash sale items');
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder:
-                                  (context) =>
-                                  ProductListScreen(filter: 'discounted'),
-                            ),
-                          );
-                        },
+                        onSeeAll: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProductListScreen(filter: 'discounted'),
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -326,8 +268,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               width: productCardWidth,
                               child: _buildProductCard(
                                 _homeData!.flashSale[index],
-                                index: index,
-                                isFlashSale: true,
                                 productImageHeight: productImageHeight,
                                 productNameSize: productNameSize,
                                 productRatingSize: productRatingSize,
@@ -347,17 +287,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: _buildSectionHeader(
                       title: 'New Arrivals',
                       sectionTitleSize: sectionTitleSize,
-                      onSeeAll: () {
-                        print('See all new arrivals');
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder:
-                                (context) =>
-                                ProductListScreen(filter: 'newest'),
-                          ),
-                        );
-                      },
+                      onSeeAll: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ProductListScreen(filter: 'newest'),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -371,15 +306,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisSpacing: 14,
                       mainAxisSpacing: 14,
                     ),
-                    itemCount:
-                    _homeData!.newArrivals.length > 4
-                        ? 4
-                        : _homeData!.newArrivals.length,
-                    itemBuilder:
-                        (context, index) => _buildProductCard(
+                    itemCount: _homeData!.newArrivals.length > 4 ? 4 : _homeData!.newArrivals.length,
+                    itemBuilder: (context, index) => _buildProductCard(
                       _homeData!.newArrivals[index],
-                      index: index,
-                      isFlashSale: false,
                       productImageHeight: productImageHeight,
                       productNameSize: productNameSize,
                       productRatingSize: productRatingSize,
@@ -396,9 +325,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ── Header ────────────────────────────────────────────────────────────────
+  // ── Header with Notification Badge ────────────────────────────────────────
   Widget _buildHeader({required double avatarRadius, required double iconSize}) {
-    // Get profile picture URL safely
     String? profileImageUrl;
     final buyerProfile = _session.buyerProfile;
 
@@ -414,67 +342,82 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         CircleAvatar(
           radius: avatarRadius,
-          backgroundImage:
-          profileImageUrl != null
+          backgroundImage: profileImageUrl != null
               ? NetworkImage(profileImageUrl)
-              : const AssetImage("assets/stock_image.png") as ImageProvider,
+              : null, // Don't use stock image
           backgroundColor: Colors.grey[200],
+          child: profileImageUrl == null
+              ? Icon(
+            Icons.person,
+            size: avatarRadius * 1.2,
+            color: Colors.grey[600],
+          )
+              : null,
         ),
         const SizedBox(width: 12),
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Welcome Back',
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
-            Text(
-              _userName,
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: avatarRadius * 0.7),
-            ),
+            const Text('Welcome Back', style: TextStyle(color: Colors.grey, fontSize: 12)),
+            Text(_userName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: avatarRadius * 0.7)),
           ],
         ),
         const Spacer(),
-        Stack(
-          children: [
-            IconButton(
-              onPressed:
-                  () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CartScreen()),
-              ),
-              icon: Icon(Icons.shopping_cart_outlined, size: iconSize),
-            ),
-            Positioned(
-              top: 6,
-              right: 6,
-              child: Container(
-                width: 8,
-                height: 8,
-                decoration: const BoxDecoration(
-                  color: Colors.red,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ],
-        ),
+        // Cart Icon
         IconButton(
-          onPressed: () {},
-          icon: Icon(Icons.notifications_outlined, size: iconSize),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const CartScreen()),
+          ),
+          icon: Icon(Icons.shopping_cart_outlined, size: iconSize),
+        ),
+        // Notification Icon with Badge
+        Consumer<NotificationProvider>(
+          builder: (context, provider, child) {
+            final unreadCount = provider.unreadCount;
+            return Stack(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const NotificationScreen()),
+                    ).then((_) => _loadNotificationCount());
+                  },
+                  icon: Icon(Icons.notifications_outlined, size: iconSize),
+                ),
+                if (unreadCount > 0)
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.red,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                      child: Text(
+                        unreadCount > 99 ? '99+' : unreadCount.toString(),
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );
   }
-
   // ── Search Bar ────────────────────────────────────────────────────────────
   Widget _buildSearchBar({required double searchBarHeight, required double iconSize}) {
     return Row(
       children: [
         Expanded(
           child: GestureDetector(
-            onTap:
-                () => Navigator.push(
+            onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const SearchScreen()),
             ),
@@ -496,25 +439,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Container(
-          width: searchBarHeight,
-          height: searchBarHeight,
-          decoration: BoxDecoration(
-            color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: IconButton(
-            onPressed:
-                () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const FiltersScreen(),
-              ),
-            ),
-            icon: Icon(Icons.tune_rounded, size: iconSize * 0.85),
           ),
         ),
       ],
@@ -559,8 +483,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 width: _currentBanner == i ? 20 : 6,
                 height: 6,
                 decoration: BoxDecoration(
-                  color:
-                  _currentBanner == i ? Colors.black : Colors.grey.shade300,
+                  color: _currentBanner == i ? Colors.black : Colors.grey.shade300,
                   borderRadius: BorderRadius.circular(3),
                 ),
               ),
@@ -603,42 +526,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   if (banner.tag != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: Colors.black,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         banner.tag!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
                       ),
                     ),
                   if (banner.tag != null) const SizedBox(height: 8),
                   if (banner.title != null)
                     Text(
                       banner.title!,
-                      style: TextStyle(
-                        fontSize: bannerTitleSize,
-                        fontWeight: FontWeight.w900,
-                        height: 1.1,
-                      ),
+                      style: TextStyle(fontSize: bannerTitleSize, fontWeight: FontWeight.w900, height: 1.1),
                     ),
                   if (banner.title != null) const SizedBox(height: 4),
                   if (banner.subtitle != null)
                     Text(
                       banner.subtitle!,
-                      style: TextStyle(
-                        fontSize: bannerSubtitleSize,
-                        color: Colors.grey.shade600,
-                        height: 1.4,
-                      ),
+                      style: TextStyle(fontSize: bannerSubtitleSize, color: Colors.grey.shade600, height: 1.4),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -647,21 +555,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     GestureDetector(
                       onTap: () => _handleBannerTap(banner),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(
                           color: Colors.black,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           banner.buttonText!,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: bannerButtonTextSize,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(color: Colors.white, fontSize: bannerButtonTextSize, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
@@ -670,9 +571,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             ClipRRect(
-              borderRadius: const BorderRadius.horizontal(
-                right: Radius.circular(20),
-              ),
+              borderRadius: const BorderRadius.horizontal(right: Radius.circular(20)),
               child: SizedBox(
                 width: 120,
                 height: 180,
@@ -757,8 +656,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     radius: categoryCircleRadius,
                     backgroundColor: Colors.grey[100],
                     child: ClipOval(
-                      child:
-                      cat.imageUrl != null
+                      child: cat.imageUrl != null
                           ? Image.network(
                         cat.imageUrl!,
                         width: categoryImageSize,
@@ -784,10 +682,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 6),
                   Text(
                     cat.name,
-                    style: TextStyle(
-                      fontSize: categoryTextSize,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: TextStyle(fontSize: categoryTextSize, fontWeight: FontWeight.w500),
                   ),
                 ],
               ),
@@ -801,16 +696,13 @@ class _HomeScreenState extends State<HomeScreen> {
   // ── Product Card ──────────────────────────────────────────────────────────
   Widget _buildProductCard(
       ProductItem product, {
-        required int index,
-        required bool isFlashSale,
         required double productImageHeight,
         required double productNameSize,
         required double productRatingSize,
         required double productPriceSize,
       }) {
     return GestureDetector(
-      onTap:
-          () => Navigator.push(
+      onTap: () => Navigator.push(
         context,
         MaterialPageRoute(
           builder: (context) => ProductDetailsScreen(productId: product.id),
@@ -836,14 +728,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
-                  ),
-                  child: _buildProductImage(
-                    product.imageUrl,
-                    width: double.infinity,
-                    height: productImageHeight,
-                  ),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+                  child: _buildProductImage(product.imageUrl, height: productImageHeight),
                 ),
                 // Discount badge
                 if (product.hasDiscount)
@@ -851,21 +737,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     top: 8,
                     left: 8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
                         color: Colors.red.shade500,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         '-${product.discountPercent}%',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
+                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
@@ -879,10 +758,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Text(
                     product.name,
-                    style: TextStyle(
-                      fontSize: productNameSize,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontSize: productNameSize, fontWeight: FontWeight.w600),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -894,10 +770,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(width: 3),
                       Text(
                         '${product.rating}(${product.reviewCount})',
-                        style: TextStyle(
-                          fontSize: productRatingSize,
-                          color: Colors.grey.shade500,
-                        ),
+                        style: TextStyle(fontSize: productRatingSize, color: Colors.grey.shade500),
                       ),
                     ],
                   ),
@@ -908,10 +781,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Text(
                           '\$${product.currentPrice.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: productPriceSize,
-                            fontWeight: FontWeight.w800,
-                          ),
+                          style: TextStyle(fontSize: productPriceSize, fontWeight: FontWeight.w800),
                         ),
                         const SizedBox(width: 5),
                         Text(
@@ -920,7 +790,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontSize: productPriceSize - 3,
                             color: Colors.grey.shade400,
                             decoration: TextDecoration.lineThrough,
-                            decorationColor: Colors.grey.shade400,
                           ),
                         ),
                       ],
@@ -928,10 +797,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   else
                     Text(
                       '\$${product.price.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        fontSize: productPriceSize,
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: TextStyle(fontSize: productPriceSize, fontWeight: FontWeight.w800),
                     ),
                 ],
               ),
@@ -943,18 +809,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   // Helper method to build product image
-  Widget _buildProductImage(String? imageUrl, {double? height, double? width}) {
-    if (imageUrl != null &&
-        (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
+  Widget _buildProductImage(String? imageUrl, {double? height}) {
+    if (imageUrl != null && (imageUrl.startsWith('http://') || imageUrl.startsWith('https://'))) {
       return Image.network(
         imageUrl,
         height: height,
-        width: width,
+        width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Container(
             height: height,
-            width: width,
             color: Colors.grey[200],
             child: const Icon(Icons.image_not_supported),
           );
@@ -964,12 +828,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Container(
       height: height,
-      width: width,
       color: Colors.grey[200],
       child: const Icon(Icons.image_not_supported),
     );
   }
 
+  // ── Skeleton Loaders ──────────────────────────────────────────────────────
   Widget _buildSkeletonLoader({
     required double horizontalPadding,
     required double bannerHeight,
@@ -1047,17 +911,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildSkeletonSectionHeader() {
     return Row(
       children: [
-        ShimmerBox(
-          width: 120,
-          height: 18,
-          borderRadius: BorderRadius.circular(6),
-        ),
+        ShimmerBox(width: 120, height: 18, borderRadius: BorderRadius.circular(6)),
         const Spacer(),
-        ShimmerBox(
-          width: 50,
-          height: 13,
-          borderRadius: BorderRadius.circular(6),
-        ),
+        ShimmerBox(width: 50, height: 13, borderRadius: BorderRadius.circular(6)),
       ],
     );
   }
@@ -1080,11 +936,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 borderRadius: BorderRadius.circular(35),
               ),
               const SizedBox(height: 6),
-              ShimmerBox(
-                width: 52,
-                height: 10,
-                borderRadius: BorderRadius.circular(5),
-              ),
+              ShimmerBox(width: 52, height: 10, borderRadius: BorderRadius.circular(5)),
             ],
           ),
         ),
@@ -1106,10 +958,7 @@ class _HomeScreenState extends State<HomeScreen> {
         itemCount: 3,
         itemBuilder: (_, __) => Padding(
           padding: const EdgeInsets.only(right: 14),
-          child: _buildSkeletonProductCard(
-            width: productCardWidth,
-            imageHeight: productImageHeight,
-          ),
+          child: _buildSkeletonProductCard(width: productCardWidth, imageHeight: productImageHeight),
         ),
       ),
     );
@@ -1163,23 +1012,11 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ShimmerBox(
-                  width: 100,
-                  height: 12,
-                  borderRadius: BorderRadius.circular(6),
-                ),
+                ShimmerBox(width: 100, height: 12, borderRadius: BorderRadius.circular(6)),
                 const SizedBox(height: 6),
-                ShimmerBox(
-                  width: 70,
-                  height: 10,
-                  borderRadius: BorderRadius.circular(5),
-                ),
+                ShimmerBox(width: 70, height: 10, borderRadius: BorderRadius.circular(5)),
                 const SizedBox(height: 8),
-                ShimmerBox(
-                  width: 60,
-                  height: 14,
-                  borderRadius: BorderRadius.circular(6),
-                ),
+                ShimmerBox(width: 60, height: 14, borderRadius: BorderRadius.circular(6)),
               ],
             ),
           ),

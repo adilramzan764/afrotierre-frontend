@@ -286,7 +286,7 @@ class _VendorEditProductScreenState extends State<VendorEditProductScreen> {
 
   void _removeExistingImage(ProductImage image) {
     setState(() {
-      _existingImages.remove(image);
+      _existingImages.removeWhere((img) => img.id == image.id);
       _deletedImageIds.add(image.id);
       _hasChanges = true;
     });
@@ -310,24 +310,45 @@ class _VendorEditProductScreenState extends State<VendorEditProductScreen> {
     return null;
   }
 
-  // ── Save ──────────────────────────────────────────────────────────────────────
+  // ── Save Logic ────────────────────────────────────────────────────────────────
+
+  Map<String, dynamic> get _attributesMap {
+    final map = <String, dynamic>{};
+    for (final attr in _attributes) {
+      final key = attr['key']!.text.trim();
+      final value = attr['value']!.text.trim();
+      if (key.isNotEmpty && value.isNotEmpty) {
+        map[key] = value;
+      }
+    }
+    return map;
+  }
 
   Future<void> _saveProduct({required bool isDraft}) async {
-    if (!_formKey.currentState!.validate()) return;
+    // Validate form
+    if (!_formKey.currentState!.validate()) {
+      CustomSnackbar.showError(context, 'Please fix the validation errors');
+      return;
+    }
 
+    // Validate category
     if (_selectedCategory == null || _selectedCategory!.isEmpty) {
       CustomSnackbar.showError(context, 'Please select a category');
       return;
     }
 
+    // Validate images (at least one image required for published products)
     if (!isDraft && _totalImageCount == 0) {
       CustomSnackbar.showError(context, 'Please add at least one product image');
       return;
     }
 
-    setState(() => _isSubmitting = true);
+    setState(() {
+      _isSubmitting = true;
+    });
 
     try {
+      // Parse price and stock
       final double price = double.tryParse(_priceController.text) ?? 0.0;
       final int stock = int.tryParse(_stockController.text) ?? 0;
 
@@ -337,30 +358,17 @@ class _VendorEditProductScreenState extends State<VendorEditProductScreen> {
         return;
       }
 
-      // FIRST: Delete any images that were removed
-      if (_deletedImageIds.isNotEmpty) {
-        for (final imageId in _deletedImageIds) {
-          final deleteResponse = await _productsRepo.deleteProductImage(
-              widget.product.id,
-              imageId
-          );
-          if (!deleteResponse.success) {
-            CustomSnackbar.showError(context,
-                'Failed to delete image: ${deleteResponse.message}'
-            );
-            setState(() => _isSubmitting = false);
-            return;
-          }
-        }
-      }
+      print('📦 Updating product:');
+      print('   Name: ${_nameController.text}');
+      print('   Price: $price');
+      print('   Stock: $stock');
+      print('   Category: $_selectedCategory');
+      print('   Is Draft: $isDraft');
+      print('   Existing images: ${_existingImages.length}');
+      print('   New images: ${_newImages.length}');
+      print('   Images to delete: ${_deletedImageIds.length}');
 
-      final Map<String, dynamic> attributes = {};
-      for (final attr in _attributes) {
-        final key = attr['key']!.text.trim();
-        final value = attr['value']!.text.trim();
-        if (key.isNotEmpty && value.isNotEmpty) attributes[key] = value;
-      }
-
+      // Create update request
       final request = UpdateProductRequest(
         name: _nameController.text.trim(),
         description: _descriptionController.text.trim(),
@@ -371,34 +379,142 @@ class _VendorEditProductScreenState extends State<VendorEditProductScreen> {
         stock: stock,
         category: _selectedCategory!,
         colors: _selectedColors,
-        attributes: attributes,
+        attributes: _attributesMap,
         sizes: [],
         materials: [],
+        draft: isDraft,
       );
 
-      // THEN: Update the product with new images
+      // Call API with images to delete
       final response = await _productsRepo.updateProduct(
+        productId: widget.product.id,
         request: request,
         newImages: _newImages.isNotEmpty ? _newImages : null,
-        productId: widget.product.id,
+        imagesToDelete: _deletedImageIds.isNotEmpty ? _deletedImageIds : null,
       );
 
-      if (response.success) {
+      print('📦 API Response: success=${response.success}, message=${response.message}');
+
+      if (response.success && response.product != null) {
+        // ✅ Update the local product with the response data
+        final updatedProduct = response.product!;
+
+        // Update all local state with the new product data
+        setState(() {
+          // Update controllers with new values
+          _nameController.text = updatedProduct.name;
+          _descriptionController.text = updatedProduct.description;
+          _priceController.text = updatedProduct.price.toStringAsFixed(2);
+          _discountedPriceController.text = updatedProduct.discountedPrice?.toStringAsFixed(2) ?? '';
+          _stockController.text = updatedProduct.stock.toString();
+
+          // Update category
+          _selectedCategory = updatedProduct.category;
+
+          // Update colors
+          _selectedColors = List<String>.from(updatedProduct.colors);
+
+          // Update images
+          _existingImages = List<ProductImage>.from(updatedProduct.images);
+          _newImages.clear();
+          _deletedImageIds.clear();
+
+          // Update draft status
+          _isDraft = updatedProduct.draft;
+
+          // Update attributes
+          _attributes.clear();
+          for (final entry in updatedProduct.attributes.entries) {
+            _attributes.add({
+              'key': TextEditingController(text: entry.key),
+              'value': TextEditingController(text: entry.value.toString()),
+            });
+          }
+
+          _hasChanges = false;
+        });
+
         CustomSnackbar.showSuccess(
           context,
-          isDraft ? 'Draft updated successfully!' : 'Product updated and published!',
+          isDraft ? 'Product saved as draft successfully!' : 'Product updated successfully!',
         );
+
+        // Wait a moment and then go back
         await Future.delayed(const Duration(seconds: 1));
-        if (mounted) Navigator.pop(context, true);
+
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
       } else {
-        CustomSnackbar.showError(context, response.error ?? response.message);
+        CustomSnackbar.showError(context, response.message);
+        print('❌ API Error: ${response.error}');
       }
     } catch (e) {
+      print('❌ Exception: $e');
       CustomSnackbar.showError(context, 'Error: ${e.toString()}');
     } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
+
+  Future<void> _publishProduct() async {
+    setState(() => _isSubmitting = true);
+
+    try {
+      print('📦 Publishing product: ${widget.product.id}');
+
+      final response = await _productsRepo.publishProduct(widget.product.id);
+
+      print('Publish response: success=${response.success}, message=${response.message}');
+
+      if (response.success) {
+        CustomSnackbar.showSuccess(context, 'Product published successfully!');
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      } else {
+        CustomSnackbar.showError(context, response.message);
+      }
+    } catch (e) {
+      print('❌ Publish error: $e');
+      CustomSnackbar.showError(context, 'Error: ${e.toString()}');
+    } finally {
+      setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _unpublishProduct() async {
+    setState(() => _isSubmitting = true);
+
+    try {
+      print('📦 Unpublishing product: ${widget.product.id}');
+
+      final response = await _productsRepo.unpublishProduct(widget.product.id);
+
+      print('Unpublish response: success=${response.success}, message=${response.message}');
+
+      if (response.success) {
+        CustomSnackbar.showSuccess(context, 'Product moved to drafts');
+        await Future.delayed(const Duration(seconds: 1));
+        if (mounted) {
+          Navigator.pop(context, true);
+        }
+      } else {
+        CustomSnackbar.showError(context, response.message);
+      }
+    } catch (e) {
+      print('❌ Unpublish error: $e');
+      CustomSnackbar.showError(context, 'Error: ${e.toString()}');
+    } finally {
+      setState(() => _isSubmitting = false);
+    }
+  }
+
   // ── Discard confirmation ──────────────────────────────────────────────────────
 
   Future<bool> _confirmDiscard() async {
@@ -742,7 +858,7 @@ class _VendorEditProductScreenState extends State<VendorEditProductScreen> {
               width: 18, height: 18,
               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Text('Loading categories...', style: TextStyle(color: Colors.black54, fontSize: 14)),
           ],
         ),
@@ -981,10 +1097,13 @@ class _VendorEditProductScreenState extends State<VendorEditProductScreen> {
     // Show add button if < 5 total
     final List<Widget> cells = [];
 
-    // Existing images
+    final allImagesCount = _existingImages.length + _newImages.length;
+
     for (int i = 0; i < _existingImages.length; i++) {
       final img = _existingImages[i];
-      final isCover = i == 0 && _newImages.isEmpty;
+
+      final isCover = (i == 0); // simpler & stable
+
       cells.add(_existingImageCell(img, isCover: isCover));
     }
 
@@ -1118,24 +1237,47 @@ class _VendorEditProductScreenState extends State<VendorEditProductScreen> {
   // ── Bottom buttons ────────────────────────────────────────────────────────────
 
   Widget _buildBottomButtons() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildButton(
-            title: _isSubmitting ? 'Saving...' : 'Save Draft',
-            outlined: true,
-            onTap: _isSubmitting ? null : () => _saveProduct(isDraft: true),
+    // For draft products: Show "Save Draft" and "Publish"
+    // For published products: Show "Save Changes" and "Unpublish"
+    if (_isDraft) {
+      return Row(
+        children: [
+          Expanded(
+            child: _buildButton(
+              title: _isSubmitting ? 'Saving...' : 'Save Draft',
+              outlined: true,
+              onTap: _isSubmitting ? null : () => _saveProduct(isDraft: true),
+            ),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildButton(
-            title: _isSubmitting ? 'Saving...' : (_isDraft ? 'Publish' : 'Save Changes'),
-            onTap: _isSubmitting ? null : () => _saveProduct(isDraft: false),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildButton(
+              title: _isSubmitting ? 'Publishing...' : 'Publish',
+              onTap: _isSubmitting ? null : _publishProduct,
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    } else {
+      return Row(
+        children: [
+          Expanded(
+            child: _buildButton(
+              title: _isSubmitting ? 'Saving...' : 'Save Changes',
+              outlined: true,
+              onTap: _isSubmitting ? null : () => _saveProduct(isDraft: false),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: _buildButton(
+              title: _isSubmitting ? 'Unpublishing...' : 'Unpublish',
+              onTap: _isSubmitting ? null : _unpublishProduct,
+            ),
+          ),
+        ],
+      );
+    }
   }
 
   // ── Shared helpers ────────────────────────────────────────────────────────────

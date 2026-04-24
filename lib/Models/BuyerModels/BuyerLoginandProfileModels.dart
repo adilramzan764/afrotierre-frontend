@@ -1,4 +1,5 @@
 // lib/Models/BuyerModels/BuyerLoginandProfileModels.dart
+
 class BuyerLoginResponse {
   final bool success;
   final String message;
@@ -18,7 +19,6 @@ class BuyerLoginResponse {
     return BuyerLoginResponse(
       success: json['success'] ?? false,
       message: json['message']?.toString() ?? '',
-      // Ensure token and refreshToken are treated as strings
       token: json['token']?.toString() ?? '',
       refreshToken: json['refreshToken']?.toString() ?? '',
       buyer: json['buyer'] != null
@@ -59,6 +59,15 @@ class BuyerData {
   final String? stripeCustomerId;
   final List<PaymentMethod>? paymentMethods;
 
+  // Google-specific fields
+  final String? avatar;
+  final String? googleId;
+  final bool isGoogleUser;
+
+  // Apple-specific fields
+  final String? appleId;
+  final bool isAppleUser;
+
   BuyerData({
     required this.id,
     required this.email,
@@ -79,6 +88,11 @@ class BuyerData {
     this.completedAt,
     this.stripeCustomerId,
     this.paymentMethods,
+    this.avatar,
+    this.googleId,
+    this.isGoogleUser = false,
+    this.appleId,
+    this.isAppleUser = false,
   });
 
   factory BuyerData.empty() {
@@ -88,6 +102,8 @@ class BuyerData {
       registrationStep: 'wallet_creation',
       isEmailVerified: false,
       status: 'active',
+      isGoogleUser: false,
+      isAppleUser: false,
     );
   }
 
@@ -134,6 +150,13 @@ class BuyerData {
       paymentMethods: json['paymentMethods'] != null
           ? (json['paymentMethods'] as List).map((item) => PaymentMethod.fromJson(item)).toList()
           : null,
+      // Google fields - check if they exist in the response
+      avatar: json['avatar']?.toString(),
+      googleId: json['googleId']?.toString(),
+      isGoogleUser: json['isGoogleUser'] ?? false,
+      // Apple fields
+      appleId: json['appleId']?.toString(),
+      isAppleUser: json['isAppleUser'] ?? false,
     );
   }
 
@@ -158,6 +181,11 @@ class BuyerData {
       'completedAt': completedAt?.toIso8601String(),
       'stripeCustomerId': stripeCustomerId,
       'paymentMethods': paymentMethods?.map((item) => item.toJson()).toList(),
+      'avatar': avatar,
+      'googleId': googleId,
+      'isGoogleUser': isGoogleUser,
+      'appleId': appleId,
+      'isAppleUser': isAppleUser,
     };
   }
 
@@ -181,6 +209,11 @@ class BuyerData {
     DateTime? completedAt,
     String? stripeCustomerId,
     List<PaymentMethod>? paymentMethods,
+    String? avatar,
+    String? googleId,
+    bool? isGoogleUser,
+    String? appleId,
+    bool? isAppleUser,
   }) {
     return BuyerData(
       id: id ?? this.id,
@@ -202,6 +235,11 @@ class BuyerData {
       completedAt: completedAt ?? this.completedAt,
       stripeCustomerId: stripeCustomerId ?? this.stripeCustomerId,
       paymentMethods: paymentMethods ?? this.paymentMethods,
+      avatar: avatar ?? this.avatar,
+      googleId: googleId ?? this.googleId,
+      isGoogleUser: isGoogleUser ?? this.isGoogleUser,
+      appleId: appleId ?? this.appleId,
+      isAppleUser: isAppleUser ?? this.isAppleUser,
     );
   }
 }

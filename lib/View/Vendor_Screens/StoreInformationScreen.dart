@@ -114,6 +114,7 @@ class _StoreInformationScreenState extends State<StoreInformationScreen> {
       print('   Original Phone: $phone');
       print('   Parsed - Country: $_initialCountryCode, Local: ${_phoneController.text}');
       print('   Categories: ${sellerProfile.category}');
+      print('   Description: ${sellerProfile.storeDescription}');
     } else {
       print('⚠️ No seller profile found in session');
       CustomSnackbar.showWarning(context, 'Profile data not found. Please restart the app.');

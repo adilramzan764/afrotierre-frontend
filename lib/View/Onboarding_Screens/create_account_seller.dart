@@ -1,8 +1,15 @@
 import 'package:afrotierre/View/Onboarding_Screens/verify_email_screen.dart';
+import 'package:afrotierre/View/Vendor_Screens/VendorStoreSignupScreen.dart';
 import 'package:afrotierre/constants.dart';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
+import '../../Models/SellerModels/SellerAuthModels.dart';
 import '../../Repository/SellerRepository/SellerAuthRepository.dart';
+import '../../Services/AppSession.dart';
+import '../../Services/GoogleSignInService.dart';
+import '../Vendor_Screens/vendor_bottom_navigation_screen.dart';
+
 
 class CreateAccountSellerScreen extends StatefulWidget {
   const CreateAccountSellerScreen({super.key});
@@ -18,6 +25,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
 
   bool _isPasswordVisible = false;
   bool _isLoading = false;
+  bool _isGoogleLoading = false;
   String? _errorMessage;
 
   // Password validation states
@@ -64,6 +72,174 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
         _hasNumber &&
         _hasSpecialChar;
   }
+
+  // ==================== GOOGLE SIGN-IN METHOD ====================
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isGoogleLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      print("🟢 Step 1: Getting ID token...");
+      final String? idToken = await GoogleSignInService.signIn();
+
+      if (idToken == null) {
+        print("🔴 Step 2: ID token is null - user cancelled");
+        setState(() {
+          _isGoogleLoading = false;
+        });
+        return;
+      }
+
+      print("🟢 Step 2: ID token obtained, length: ${idToken.length}");
+      print("🟢 Step 3: Sending to backend...");
+
+      final response = await _authRepository.googleAuth(idToken: idToken);
+
+      print("🟢 Step 4: Backend response received");
+      print("=== BACKEND RESPONSE ===");
+      print("Success: ${response.success}");
+      print("Message: ${response.message}");
+      print("Token: ${response.token}");
+      print("IsNewUser: ${response.isNewUser}");
+      print("RegistrationStep: ${response.seller?.registrationStep}");
+      print("Seller exists: ${response.seller != null}");
+      print("========================");
+
+      if (!mounted) return;
+
+// In _handleGoogleSignIn method, replace the navigation section:
+
+      if (response.success && response.token != null) {
+        print("🟢 Step 5: Saving token to AppSession...");
+
+        // Save to AppSession instead of separate storage
+        if (response.seller != null) {
+          await GoogleSignInService.saveSellerSession(response.token!, response.seller!);
+        } else {
+          // If seller is null, create a basic seller object
+          final basicSeller = SellerModel(
+            id: '', // Will be updated from backend
+            email: response.seller?.email ?? '',
+            registrationStep: response.seller?.registrationStep ?? 'store_details',
+            isEmailVerified: response.seller?.isEmailVerified ?? false,
+          );
+          await GoogleSignInService.saveSellerSession(response.token!, basicSeller);
+        }
+
+        print("🟢 Step 6: Token saved, checking AppSession...");
+        print("AppSession token: ${AppSession.instance.authToken}");
+        print("AppSession userId: ${AppSession.instance.userId}");
+
+        // Navigate based on registration step
+        if (mounted) {
+          final step = response.seller?.registrationStep;
+
+          if (step == 'completed') {
+            // User already has store, go to dashboard
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const VendorBottomNavigationScreen(),
+              ),
+            );
+          } else {
+            // User needs to complete store details
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => VendorStoreSignupScreen(
+                  token: response.token!,
+                  isGoogleUser: true,
+                  googleEmail: response.seller?.email,
+                  googleStoreName: response.seller?.storeName,
+                ),
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print("🔴 ERROR: $e");
+      setState(() {
+        _errorMessage = 'Google Sign-In failed: ${e.toString()}';
+        _isGoogleLoading = false;
+      });
+    }
+  }
+  void _handleGoogleUserNavigation(AuthResponse response) {
+    // Safely check if we have a valid token
+    if (response.token == null || response.token!.isEmpty) {
+      _showErrorSnackbar('Authentication error. Please try again.');
+      return;
+    }
+
+    // Based on registration step, navigate appropriately
+    final step = response.seller?.registrationStep;
+    final hasStoreName = response.seller?.storeName != null &&
+        response.seller!.storeName!.isNotEmpty;
+
+    switch (step) {
+      case 'store_details':
+      // User needs to complete store details
+        _navigateToStoreDetails(response);
+        break;
+
+      case 'completed':
+      // User has completed registration, go to dashboard
+        _navigateToDashboard();
+        break;
+
+      default:
+      // Handle edge cases
+        if (hasStoreName) {
+          // User has store name but step is wrong - treat as completed
+          _navigateToDashboard();
+        } else {
+          // Default to store details screen
+          _navigateToStoreDetails(response);
+        }
+    }
+  }
+
+// Helper method for navigating to store details
+  void _navigateToStoreDetails(AuthResponse response) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VendorStoreSignupScreen(
+          token: response.token!,
+          isGoogleUser: true,
+          googleEmail: response.seller?.email,  // Fixed: Use googleEmail
+          googleStoreName: response.seller?.storeName,  // Fixed: Use googleStoreName
+        ),
+      ),
+    );
+  }
+
+// Helper method for navigating to dashboard
+  void _navigateToDashboard() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const VendorBottomNavigationScreen(),
+      ),
+    );
+  }
+
+// Helper method for showing errors
+  void _showErrorSnackbar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+  // ==================== EMAIL/PASSWORD SIGN-UP METHOD ====================
 
   Future<void> _handleSignUp() async {
     final email = _emailController.text.trim();
@@ -133,28 +309,29 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
       }
     }
   }
+
+  // ==================== UI HELPERS ====================
+
   String get _strengthLabel {
     final score = [_hasMinLength, _hasUpperCase, _hasLowerCase, _hasNumber, _hasSpecialChar]
         .where((e) => e).length;
 
-    // Fixed: Handle score 0 and 5 properly
     if (score == 0) return '';
     if (score <= 2) return 'Weak';
     if (score <= 3) return 'Fair';
     if (score <= 4) return 'Good';
-    return 'Strong'; // score == 5
+    return 'Strong';
   }
 
   Color get _strengthColor {
     final score = [_hasMinLength, _hasUpperCase, _hasLowerCase, _hasNumber, _hasSpecialChar]
         .where((e) => e).length;
 
-    // Fixed: Handle score 0 properly
     if (score == 0) return Colors.transparent;
     if (score <= 2) return Colors.red;
     if (score <= 3) return Colors.orange;
     if (score <= 4) return Colors.green;
-    return const Color(0xFF1D9E75); // score == 5
+    return const Color(0xFF1D9E75);
   }
 
   @override
@@ -266,7 +443,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Replace all 5 _buildPasswordRequirement calls with this:
+              // Password strength indicator
               Row(
                 children: List.generate(5, (i) {
                   final checks = [_hasMinLength, _hasUpperCase, _hasLowerCase, _hasNumber, _hasSpecialChar];
@@ -285,7 +462,6 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               const SizedBox(height: 6),
               Row(
                 children: [
-                  // 5 dots
                   ...List.generate(5, (i) {
                     final checks = [_hasMinLength, _hasUpperCase, _hasLowerCase, _hasNumber, _hasSpecialChar];
                     final score = checks.where((e) => e).length;
@@ -309,6 +485,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                   ),
                 ],
               ),
+
               if (_errorMessage != null) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -326,7 +503,10 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                   ),
                 ),
               ],
+
               const SizedBox(height: 40),
+
+              // Sign Up Button
               ElevatedButton(
                 onPressed: _isLoading ? null : _handleSignUp,
                 style: ElevatedButton.styleFrom(
@@ -350,7 +530,10 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                   style: TextStyle(fontSize: 16, color: primaryColor),
                 ),
               ),
+
               const SizedBox(height: 24),
+
+              // Sign In Link
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -372,7 +555,10 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                   ),
                 ],
               ),
+
               const SizedBox(height: 32),
+
+              // Divider
               const Row(
                 children: [
                   Expanded(child: Divider()),
@@ -383,18 +569,33 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
                   Expanded(child: Divider()),
                 ],
               ),
+
               const SizedBox(height: 32),
+
+              // Google Sign In Button
               _buildSocialButton(
                 'Continue with Google',
                 Image.asset('assets/google.png', height: 20),
-                    () {},
+                _handleGoogleSignIn,
+                isLoading: _isGoogleLoading,
               ),
+
               const SizedBox(height: 16),
+
+
+
+              // Apple Sign In Button (placeholder - implement if needed)
               _buildSocialButton(
                 'Continue with Apple',
                 Image.asset('assets/apple.png', height: 20),
-                    () {},
+                    () {
+                  // TODO: Implement Apple Sign-In
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Apple Sign-In coming soon!')),
+                  );
+                },
               ),
+
               const SizedBox(height: 20),
             ],
           ),
@@ -403,16 +604,29 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
     );
   }
 
-
-  Widget _buildSocialButton(String text, Widget icon, VoidCallback onPressed) {
+  Widget _buildSocialButton(
+      String text,
+      Widget icon,
+      VoidCallback onPressed, {
+        bool isLoading = false,
+      }) {
     return OutlinedButton(
-      onPressed: onPressed,
+      onPressed: isLoading ? null : onPressed,
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 16),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         side: BorderSide(color: Colors.grey[300]!),
       ),
-      child: Row(
+      child: isLoading
+          ? const SizedBox(
+        height: 20,
+        width: 20,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+        ),
+      )
+          : Row(
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [

@@ -1,5 +1,3 @@
-// lib/repositories/buyer_auth_repo.dart
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -8,7 +6,6 @@ import 'package:mime/mime.dart';
 
 import '../../Constants/ApiConstants.dart';
 import '../../Models/BuyerModels/BuyerAuthModels.dart';
-
 
 class BuyerAuthRepo {
   static const String _baseUrl = ApiConstants.baseUrlBuyer;
@@ -20,6 +17,230 @@ class BuyerAuthRepo {
       if (token != null) 'Authorization': 'Bearer $token',
     };
   }
+
+  // ==================== APPLE AUTH METHODS ====================
+
+  /// Apple Sign-In / Sign-Up for Buyers
+  Future<AuthResponse> appleAuth({
+    required String identityToken,
+    Map<String, String>? fullName,
+    String? email,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl${ApiConstants.appleAuthBuyer}');
+      final request = AppleAuthRequest(
+        identityToken: identityToken,
+        fullName: fullName,
+        email: email,
+      );
+
+      final response = await http.post(
+        url,
+        headers: _getHeaders(),
+        body: jsonEncode(request.toJson()),
+      );
+
+      print('URL: $url');
+      print('Request Body: ${jsonEncode(request.toJson())}');
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Apple authentication failed',
+          useAppleAuth: data['useAppleAuth'],
+        );
+      }
+    } catch (e) {
+      print('Apple auth error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Link Apple account to existing email/password account
+  Future<AuthResponse> linkAppleAccount({
+    required String token,
+    required String identityToken,
+    Map<String, String>? fullName,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl${ApiConstants.linkAppleBuyer}');
+      final request = LinkAppleRequest(
+        identityToken: identityToken,
+        fullName: fullName,
+      );
+
+      final response = await http.post(
+        url,
+        headers: _getHeaders(token: token),
+        body: jsonEncode(request.toJson()),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to link Apple account',
+        );
+      }
+    } catch (e) {
+      print('Link Apple account error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Unlink Apple account
+  Future<AuthResponse> unlinkAppleAccount({
+    required String token,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl${ApiConstants.unlinkAppleBuyer}');
+
+      final response = await http.post(
+        url,
+        headers: _getHeaders(token: token),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to unlink Apple account',
+        );
+      }
+    } catch (e) {
+      print('Unlink Apple account error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== GOOGLE AUTH METHODS ====================
+
+  /// Google Sign-In / Sign-Up for Buyers
+  Future<AuthResponse> googleAuth({
+    required String idToken,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl${ApiConstants.googleAuthBuyer}');
+      final request = GoogleAuthRequest(idToken: idToken);
+
+      final response = await http.post(
+        url,
+        headers: _getHeaders(),
+        body: jsonEncode(request.toJson()),
+      );
+
+      print('URL: $url');
+      print('Request Body: ${jsonEncode(request.toJson())}');
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Google authentication failed',
+          useGoogleAuth: data['useGoogleAuth'],
+        );
+      }
+    } catch (e) {
+      print('Google auth error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Link Google account to existing email/password account
+  Future<AuthResponse> linkGoogleAccount({
+    required String token,
+    required String idToken,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl${ApiConstants.linkGoogleBuyer}');
+      final request = LinkGoogleRequest(idToken: idToken);
+
+      final response = await http.post(
+        url,
+        headers: _getHeaders(token: token),
+        body: jsonEncode(request.toJson()),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to link Google account',
+        );
+      }
+    } catch (e) {
+      print('Link Google account error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  /// Unlink Google account
+  Future<AuthResponse> unlinkGoogleAccount({
+    required String token,
+  }) async {
+    try {
+      final url = Uri.parse('$_baseUrl${ApiConstants.unlinkGoogleBuyer}');
+
+      final response = await http.post(
+        url,
+        headers: _getHeaders(token: token),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to unlink Google account',
+        );
+      }
+    } catch (e) {
+      print('Unlink Google account error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== EXISTING AUTH METHODS ====================
 
   // Step 1: Create Wallet (Sign Up with Email & Password)
   Future<AuthResponse> createWallet({
@@ -45,12 +266,18 @@ class BuyerAuthRepo {
       if (response.statusCode == 201 || response.statusCode == 200) {
         return AuthResponse.fromJson(data);
       } else {
-        // Handle validation errors
         if (data['errors'] != null) {
           final errorResponse = CreateWalletErrorResponse.fromJson(data);
-          throw Exception(errorResponse.message);
+          return AuthResponse(
+            success: false,
+            message: errorResponse.message,
+            errors: errorResponse.errors?.map((e) => e.message).toList(),
+          );
         }
-        throw Exception(data['message'] ?? 'Failed to create wallet');
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to create wallet',
+        );
       }
     } catch (e) {
       throw Exception('Network error: $e');
@@ -77,7 +304,10 @@ class BuyerAuthRepo {
       if (response.statusCode == 200) {
         return AuthResponse.fromJson(data);
       } else {
-        throw Exception(data['message'] ?? 'Failed to verify email');
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to verify email',
+        );
       }
     } catch (e) {
       throw Exception('Network error: $e');
@@ -103,13 +333,17 @@ class BuyerAuthRepo {
       if (response.statusCode == 200) {
         return AuthResponse.fromJson(data);
       } else {
-        throw Exception(data['message'] ?? 'Failed to resend OTP');
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to resend OTP',
+        );
       }
     } catch (e) {
       throw Exception('Network error: $e');
     }
   }
 
+  // Submit Profile Details (Step 3)
   Future<AuthResponse> submitProfileDetails({
     required String token,
     required String fullName,
@@ -121,7 +355,6 @@ class BuyerAuthRepo {
     try {
       final url = Uri.parse('$_baseUrl${ApiConstants.submitprofile}');
 
-      // Create multipart request
       final request = http.MultipartRequest('POST', url);
       request.headers['Authorization'] = 'Bearer $token';
 
@@ -142,7 +375,6 @@ class BuyerAuthRepo {
         final mimeTypeData = lookupMimeType(profilePicture.path);
         final extension = profilePicture.path.split('.').last.toLowerCase();
 
-        // Determine content type
         MediaType? contentType;
         if (mimeTypeData != null) {
           final parts = mimeTypeData.split('/');
@@ -151,7 +383,6 @@ class BuyerAuthRepo {
           }
         }
 
-        // Fallback content type if lookup fails
         contentType ??= MediaType('image', extension == 'jpg' ? 'jpeg' : extension);
 
         final multipartFile = await http.MultipartFile.fromPath(
@@ -170,31 +401,17 @@ class BuyerAuthRepo {
       if (response.statusCode == 200 || response.statusCode == 201) {
         return AuthResponse.fromJson(data);
       } else {
-        throw Exception(data['message'] ?? 'Failed to submit profile details');
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to submit profile details',
+        );
       }
     } catch (e) {
       print('Submit profile details error: $e');
-      throw Exception('Network error: $e');
-    }
-  }
-
-// Helper method to get image extension (if you don't want to use mime package)
-  String _getImageExtension(String path) {
-    final extension = path.split('.').last.toLowerCase();
-    switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-        return 'jpeg';
-      case 'png':
-        return 'png';
-      case 'gif':
-        return 'gif';
-      case 'webp':
-        return 'webp';
-      case 'heic':
-        return 'heic';
-      default:
-        return 'jpeg';
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
     }
   }
 
@@ -213,12 +430,20 @@ class BuyerAuthRepo {
       if (response.statusCode == 200) {
         return AuthResponse.fromJson(data);
       } else {
-        throw Exception(data['message'] ?? 'Failed to get profile');
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to get profile',
+        );
       }
     } catch (e) {
-      throw Exception('Network error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
     }
   }
+
+  // ==================== REGISTRATION STEP METHODS ====================
 
   // Update profile
   Future<AuthResponse> updateProfile({
@@ -251,16 +476,24 @@ class BuyerAuthRepo {
         request.fields['address'] = jsonEncode(address);
       }
 
-      if (profilePicture != null) {
-        final stream = http.ByteStream(profilePicture.openRead());
-        final length = await profilePicture.length();
+      if (profilePicture != null && await profilePicture.exists()) {
+        final mimeTypeData = lookupMimeType(profilePicture.path);
+        final extension = profilePicture.path.split('.').last.toLowerCase();
 
-        final multipartFile = http.MultipartFile(
+        MediaType? contentType;
+        if (mimeTypeData != null) {
+          final parts = mimeTypeData.split('/');
+          if (parts.length == 2) {
+            contentType = MediaType(parts[0], parts[1]);
+          }
+        }
+
+        contentType ??= MediaType('image', extension == 'jpg' ? 'jpeg' : extension);
+
+        final multipartFile = await http.MultipartFile.fromPath(
           'profilePicture',
-          stream,
-          length,
-          filename: profilePicture.path.split('/').last,
-          contentType: MediaType('image', _getImageExtension(profilePicture.path)),
+          profilePicture.path,
+          contentType: contentType,
         );
 
         request.files.add(multipartFile);
@@ -273,14 +506,18 @@ class BuyerAuthRepo {
       if (response.statusCode == 200) {
         return AuthResponse.fromJson(data);
       } else {
-        throw Exception(data['message'] ?? 'Failed to update profile');
+        return AuthResponse(
+          success: false,
+          message: data['message'] ?? 'Failed to update profile',
+        );
       }
     } catch (e) {
-      throw Exception('Network error: $e');
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
     }
   }
-
-
 
   // Validate password strength (client-side validation)
   static Map<String, dynamic> validatePassword(String password) {
@@ -315,5 +552,9 @@ class BuyerAuthRepo {
       'isValid': errors.isEmpty,
       'errors': errors,
     };
+  }
+
+  void dispose() {
+    // Close any open connections if needed
   }
 }

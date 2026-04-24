@@ -3,6 +3,9 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../Models/SellerModels/SellerAuthModels.dart';
+import 'AppSession.dart';
+
 class GoogleSignInService {
   static final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: [
@@ -42,15 +45,26 @@ class GoogleSignInService {
       print("Google Sign-In error: $e");
       return null;
     }
-  }  /// Sign out from Google
+  }
+
+  /// Save session to AppSession (NOT separate storage)
+  static Future<void> saveSellerSession(String token, SellerModel seller) async {
+    await AppSession.instance.setSellerSession(token, seller);
+    debugPrint('✅ Seller session saved to AppSession');
+  }
+
+  /// Sign out from Google and clear session
   static Future<void> signOut() async {
     try {
       await _googleSignIn.signOut();
+      await AppSession.instance.logout();
       debugPrint('✅ Google Sign-Out successful');
     } catch (error) {
       debugPrint('❌ Google Sign-Out error: $error');
     }
   }
+
+
 
   /// Check if user is signed in with Google
   static Future<bool> isSignedIn() async {
@@ -103,8 +117,14 @@ class GoogleSignInService {
 
   /// Clear saved token
   static Future<void> clearToken() async {
+    // Clear local session
+    await AppSession.instance.logout();
+    print('✅ Cleared local session');
+
+    // Also clear any other Google-related stored data
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('auth_token');
+    await prefs.remove('google_user_email');
+    await prefs.remove('google_user_name');
     debugPrint('✅ Auth token cleared from shared preferences');
   }
 

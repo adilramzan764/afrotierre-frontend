@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:afrotierre/View/Vendor_Screens/vendor_bottom_navigation_screen.dart';
 import 'package:afrotierre/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,12 +8,24 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../Models/SellerModels/SellerAuthModels.dart';
 import '../../Repository/SellerRepository/SellerAuthRepository.dart';
+import '../../Services/AppSession.dart';
 import '../../res/Widgets/CustomSnackbar.dart';
 import '../Onboarding_Screens/sign_in_account_seller.dart';
+import 'VendorSignUpAddressScreen.dart';
 
 class VendorStoreSignupScreen extends StatefulWidget {
   final String token;
-  const VendorStoreSignupScreen({super.key, required this.token});
+  final bool isGoogleUser; // New parameter
+  final String? googleEmail; // Pre-filled email for Google users
+  final String? googleStoreName; // Suggested store name from Google
+
+  const VendorStoreSignupScreen({
+    super.key,
+    required this.token,
+    this.isGoogleUser = false,
+    this.googleEmail,
+    this.googleStoreName,
+  });
 
   @override
   State<VendorStoreSignupScreen> createState() =>
@@ -24,12 +37,11 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
   final _storeNameController = TextEditingController();
   final _businessEmailController = TextEditingController();
   final _storeDescriptionController = TextEditingController();
-  String? _phoneNumber; // Add this variable at the top with other variables
-
+  String? _phoneNumber;
+  String? _errorMessage;
 
   List<String> _selectedCategories = [];
   bool _isLoading = false;
-  String? _errorMessage;
   File? _logoImage;
 
   late SellerAuthRepository _authRepository;
@@ -39,6 +51,16 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
   void initState() {
     super.initState();
     _authRepository = SellerAuthRepository();
+
+    // Pre-fill data for Google users
+    if (widget.isGoogleUser) {
+      if (widget.googleEmail != null) {
+        _businessEmailController.text = widget.googleEmail!;
+      }
+      if (widget.googleStoreName != null) {
+        _storeNameController.text = widget.googleStoreName!;
+      }
+    }
   }
 
   @override
@@ -117,6 +139,7 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
       ),
     );
   }
+
   void _showErrorSnackbar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -183,15 +206,13 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
-
-    // Validate phone number
     if (_phoneNumber == null || _phoneNumber!.isEmpty) {
       _showErrorSnackbar('Please enter a valid phone number');
       return;
     }
 
     if (_selectedCategories.isEmpty) {
-      _showErrorSnackbar('Please select at least one store category');  // ← changed
+      _showErrorSnackbar('Please select at least one store category');
       return;
     }
 
@@ -200,7 +221,7 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
     try {
       final request = StoreDetailsRequest(
         storeName: _storeNameController.text.trim(),
-        phoneNumber: _phoneNumber!, // Use _phoneNumber instead
+        phoneNumber: _phoneNumber!,
         businessEmail: _businessEmailController.text.trim(),
         category: _selectedCategories,
         storeDescription: _storeDescriptionController.text.trim(),
@@ -215,17 +236,28 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
 
       if (response.success && response.seller != null) {
         print("Store details submitted successfully: ${response.message}");
-        await _showSuccessDialog(response.message);
+
+        // Update the session with the complete seller profile
+        await AppSession.instance.updateSellerProfile(response.seller!);
+
+        // Also ensure the token is still valid
+        if (AppSession.instance.authToken != widget.token) {
+          await AppSession.instance.setSellerSession(widget.token, response.seller!);
+        }
+
+        Navigator.pushReplacement(context,
+          MaterialPageRoute(builder: (_) => VendorSignUpAddressScreen(isGoogleUser: widget.isGoogleUser,googleEmail: widget.googleEmail,storeName: _storeNameController.text,token: widget.token,)
+        ));
+
+        // await _showSuccessDialog(response.message);
       } else {
         String errorMessage = response.getFormattedErrorMessage();
 
-        // Handle specific validation errors
         if (errorMessage.contains('phone number')) {
           CustomSnackbar.showError(
             context,
             'Please enter a valid phone number',
           );
-          // Also highlight the phone number field
           setState(() {
             _errorMessage = 'Please enter a valid phone number';
           });
@@ -245,7 +277,6 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
           _errorMessage = errorMessage;
         });
       }
-
     } catch (e) {
       final errorMessage = 'Failed to submit store details: ${e.toString()}';
       print('Error in _handleSubmit: $e');
@@ -260,131 +291,7 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
-  Future<void> _showSuccessDialog(String message) async {
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (_) => Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(24),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Success icon
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.15),
-                      blurRadius: 20,
-                      spreadRadius: 4,
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.check_rounded,
-                  size: 36,
-                  color: Colors.green.shade600,
-                ),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Store Created!',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message.isNotEmpty
-                    ? message
-                    : 'Your store details have been submitted successfully. You can now start selling!',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: Colors.grey.shade500,
-                  height: 1.6,
-                ),
-              ),
-              const SizedBox(height: 8),
 
-              // Store name chip
-              if (_storeNameController.text.isNotEmpty)
-                Container(
-                  margin: const EdgeInsets.only(top: 4, bottom: 4),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.storefront_outlined,
-                          size: 14, color: Colors.grey.shade600),
-                      const SizedBox(width: 6),
-                      Text(
-                        _storeNameController.text.trim(),
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-              const SizedBox(height: 24),
-
-              // Continue button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(); // close dialog
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => SignInAccountSellerScreen()),
-                    );
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.black,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: const Text(
-                    'Continue to Login',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -404,7 +311,14 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
                   Align(
                     alignment: Alignment.centerLeft,
                     child: GestureDetector(
-                      onTap: () {},
+                      onTap: () {
+                        // For Google users, going back might need special handling
+                        if (widget.isGoogleUser) {
+                          _showBackConfirmationDialog();
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
                       child: Container(
                         height: 40,
                         width: 40,
@@ -427,6 +341,41 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+
+                  // Google user indicator badge
+                  if (widget.isGoogleUser)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.g_mobiledata,
+                              size: 14,
+                              color: Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Google',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
 
@@ -438,6 +387,8 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 28),
+
+
 
                         // ── Logo Upload ──────────────────────────────────
                         _buildLogoUpload(),
@@ -460,8 +411,6 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
 
                         _buildLabel('Phone Number'),
                         const SizedBox(height: 8),
-
-
                         IntlPhoneField(
                           initialCountryCode: 'US',
                           style: const TextStyle(fontSize: 14),
@@ -491,7 +440,6 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
                             if (phone == null || phone.number.isEmpty) {
                               return 'Phone number is required';
                             }
-                            // Basic validation - ensure the number has reasonable length
                             if (phone.number.length < 5) {
                               return 'Please enter a valid phone number';
                             }
@@ -507,6 +455,7 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
                           hint: 'business@example.com',
                           keyboardType: TextInputType.emailAddress,
                           prefixIcon: Icons.mail_outline_rounded,
+                          // enabled: !widget.isGoogleUser, // Disable editing for Google users? Optional
                           validator: (v) {
                             if (v == null || v.isEmpty) {
                               return 'Business email is required';
@@ -569,7 +518,6 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
                           },
                         ),
 
-
                         const SizedBox(height: 40),
                       ],
                     ),
@@ -586,8 +534,15 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
                       child: SizedBox(
                         height: 55,
                         child: ElevatedButton(
-                          onPressed:
-                          _isLoading ? null : () => Navigator.pop(context),
+                          onPressed: _isLoading
+                              ? null
+                              : () {
+                            if (widget.isGoogleUser) {
+                              _showBackConfirmationDialog();
+                            } else {
+                              Navigator.pop(context);
+                            }
+                          },
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             elevation: 0,
@@ -648,6 +603,39 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // Show confirmation dialog when Google user tries to go back
+  void _showBackConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: const Text('Cancel Registration?'),
+        content: const Text(
+          'Your Google account has been created but your store details are not complete. '
+              'You will need to complete store setup later from your profile.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Continue Setup'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Go back
+            },
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -818,6 +806,7 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
     int maxLines = 1,
     int? maxLength,
     IconData? prefixIcon,
+    bool enabled = true,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
@@ -825,6 +814,7 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
       maxLines: maxLines,
       maxLength: maxLength,
       keyboardType: keyboardType,
+      enabled: enabled,
       validator: validator,
       buildCounter: maxLength != null
           ? (_, {required currentLength, required isFocused, maxLength}) =>
@@ -837,7 +827,7 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
             ? Icon(prefixIcon, color: Colors.grey.shade400, size: 20)
             : null,
         filled: true,
-        fillColor: const Color(0xffEFEFEF),
+        fillColor: enabled ? const Color(0xffEFEFEF) : Colors.grey.shade100,
         contentPadding:
         const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(

@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../../Models/BuyerModels/BuyerCartModels.dart';
 import '../../Models/BuyerModels/BuyerHomeModels.dart';
+import '../../Repository/BuyerRepository/BuyerCartRepo.dart';
 import '../../Repository/BuyerRepository/BuyerHomeRepo.dart';
+import '../../Repository/BuyerRepository/BuyerWishlistRepository.dart';
 import '../../Services/AppSession.dart';
+import '../../res/Widgets/CustomSnackbar.dart';
+import '../../res/Widgets/SuccessDialog.dart';
+import 'checkout_screen.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 const Color _kBg    = Color(0xFFF2F2F7);
@@ -23,6 +29,9 @@ class ProductDetailsScreen extends StatefulWidget {
 
 class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   final BuyerHomeRepo _homeRepo = BuyerHomeRepo();
+  final BuyerCartRepo _cartRepo = BuyerCartRepo();
+  final WishlistRepository _wishlistRepo = WishlistRepository();
+
   final AppSession _session = AppSession.instance;
 
   ProductDetails? _product;
@@ -34,7 +43,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   int _currentImagePage = 0;
   int _quantity = 1;
   bool _isWishlisted = false;
+  bool _isUpdatingWishlist = false;
   bool _descriptionExpanded = false;
+  bool _isAddingToCart = false;
 
   final PageController _pageController = PageController();
 
@@ -62,6 +73,122 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
       debugPrint('Error fetching product: $e');
+    }
+  }
+
+  Future<void> _toggleWishlist() async {
+    final token = _session.authToken;
+    if (token == null || token.isEmpty) {
+      CustomSnackbar.showError(context, 'Please login to manage wishlist');
+      return;
+    }
+
+    if (_isUpdatingWishlist) return;
+
+    setState(() => _isUpdatingWishlist = true);
+
+    try {
+      if (_isWishlisted) {
+        // Remove from wishlist
+        final response = await _wishlistRepo.removeFromWishlist(widget.productId!);
+        if (response.success) {
+          setState(() {
+            _isWishlisted = false;
+          });
+          CustomSnackbar.showSuccess(context, 'Removed from wishlist');
+        } else {
+          CustomSnackbar.showError(context, response.message ?? 'Failed to remove from wishlist');
+        }
+      } else {
+        // Add to wishlist
+        final response = await _wishlistRepo.addToWishlist(widget.productId!);
+        if (response.success) {
+          setState(() {
+            _isWishlisted = true;
+          });
+          CustomSnackbar.showSuccess(context, 'Added to wishlist');
+        } else {
+          CustomSnackbar.showError(context, response.message ?? 'Failed to add to wishlist');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error toggling wishlist: $e');
+      CustomSnackbar.showError(context, 'Error updating wishlist');
+    } finally {
+      if (mounted) {
+        setState(() => _isUpdatingWishlist = false);
+      }
+    }
+  }
+
+  Future<void> _addToCart({required bool isBuyNow}) async {
+    final token = _session.authToken;
+    if (token == null || token.isEmpty) {
+      CustomSnackbar.showError(context, 'Please login to add items to cart');
+      return;
+    }
+
+    if (_isAddingToCart) return;
+
+    setState(() => _isAddingToCart = true);
+
+    try {
+      final request = AddToCartRequest(
+        productId: widget.productId ?? '',
+        quantity: _quantity,
+        // Add selected options if your backend supports them
+
+      );
+
+      final response = await _cartRepo.addToCart(token, request, context: context);
+
+      if (response.success && mounted) {
+        // Build message with selected options
+        String selectedOptions = '';
+        if (_product?.colors.isNotEmpty == true) {
+          selectedOptions += '\nColor: ${_product!.colors[_selectedColorIndex]}';
+        }
+        if (_product?.sizes.isNotEmpty == true) {
+          selectedOptions += '\nSize: ${_product!.sizes[_selectedSizeIndex]}';
+        }
+        if (_product?.materials.isNotEmpty == true) {
+          selectedOptions += '\nMaterial: ${_product!.materials[_selectedMaterialIndex]}';
+        }
+
+        // Show success dialog
+        showSuccessDialog(
+          context,
+          title: 'Added to Cart!',
+          message: '${_product?.name}\nQuantity: $_quantity$selectedOptions\n\nAdded to your cart successfully.',
+          buttonText: isBuyNow ? 'Proceed to Checkout' : 'Continue Shopping',
+          onPressed: () {
+            if (isBuyNow) {
+              // Navigate to checkout screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+              );
+            } else {
+              Navigator.pop(context);
+            }
+          },
+          barrierDismissible: false,
+        );
+      } else if (mounted) {
+        CustomSnackbar.showError(context, response.message ?? 'Failed to add to cart');
+      }
+    } catch (e) {
+      if (mounted) {
+        CustomSnackbar.showError(
+          context,
+          'Failed to add to cart: ${e.toString().replaceFirst('Exception: ', '')}',
+        );
+      }
+      debugPrint('Error adding to cart: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isAddingToCart = false);
+      }
     }
   }
 
@@ -158,7 +285,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           leading: Padding(
             padding: const EdgeInsets.all(8),
             child: _circleBtn(
-              Icons.arrow_back_ios_new_rounded,
+              Icons.arrow_back,
               onTap: () => Navigator.pop(context),
             ),
           ),
@@ -169,7 +296,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 _isWishlisted ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                 iconColor: _isWishlisted ? Colors.red.shade500 : _kInk,
                 bgColor: _isWishlisted ? Colors.red.shade50 : Colors.white,
-                onTap: () => setState(() => _isWishlisted = !_isWishlisted),
+                onTap: _toggleWishlist,
+                isLoading: _isUpdatingWishlist,
               ),
             ),
           ],
@@ -839,19 +967,20 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             child: SizedBox(
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: inStock
-                    ? () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('$_quantity × ${_product!.name} added to cart'),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  );
-                }
+                onPressed: inStock && !_isAddingToCart
+                    ? () => _addToCart(isBuyNow: false)
                     : null,
-                icon: const Icon(Icons.shopping_bag_outlined, size: 18),
-                label: const Text('Add to Cart', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                icon: _isAddingToCart
+                    ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                )
+                    : const Icon(Icons.shopping_bag_outlined, size: 18),
+                label: Text(
+                  _isAddingToCart ? 'Adding...' : 'Add to Cart',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1C1C1E),
                   foregroundColor: Colors.white,
@@ -869,7 +998,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             child: SizedBox(
               height: 52,
               child: OutlinedButton(
-                onPressed: inStock ? () {} : null,
+                onPressed: inStock && !_isAddingToCart
+                    ? () => _addToCart(isBuyNow: true)
+                    : null,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF1C1C1E),
                   side: BorderSide(color: inStock ? const Color(0xFF1C1C1E) : Colors.grey.shade300, width: 1.5),
@@ -939,9 +1070,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         required VoidCallback onTap,
         Color? iconColor,
         Color? bgColor,
+        bool isLoading = false,
       }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: isLoading ? null : onTap,
       child: Container(
         width: 38,
         height: 38,
@@ -950,7 +1082,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           shape: BoxShape.circle,
           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 8, offset: const Offset(0, 2))],
         ),
-        child: Icon(icon, size: 18, color: iconColor ?? _kInk),
+        child: isLoading
+            ? const SizedBox(
+          width: 18,
+          height: 18,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        )
+            : Icon(icon, size: 18, color: iconColor ?? _kInk),
       ),
     );
   }

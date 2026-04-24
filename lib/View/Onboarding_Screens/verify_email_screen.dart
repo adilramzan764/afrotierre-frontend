@@ -171,7 +171,7 @@ class _VerifyEmailScreenState extends State<VerifyEmailScreen> {
         if (response.success && response.buyer != null) {
           if (response.buyer!.registrationStep == 'profile_details') {
             if (mounted) {
-              CustomSnackbar.showSuccess(context, response.message);
+              // CustomSnackbar.showSuccess(context, response.message);
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(

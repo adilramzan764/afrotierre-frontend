@@ -1,145 +1,161 @@
+import 'package:afrotierre/View/Buyers_Screens/TrackOrder.dart';
 import 'package:afrotierre/View/Buyers_Screens/order_detail_screen.dart';
 import 'package:flutter/material.dart';
-
-import '../../constants.dart';
-
+import '../../Services/AppSession.dart';
 
 class PaymentSuccessfulScreen extends StatelessWidget {
-  const PaymentSuccessfulScreen({super.key});
+  final String orderNumber;
+  final String orderId;
+
+  const PaymentSuccessfulScreen({
+    super.key,
+    required this.orderNumber,
+    required this.orderId,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF7F7F7),
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: const Color(0xFFF7F7F7),
         elevation: 0,
+        scrolledUnderElevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
         ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildShippedStatusCard(),
-            const Spacer(),
-
-            _buildPaymentSuccessDetails(),
-            const Spacer(),
-            _buildActionButtons(() {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => OrderDetailScreen(),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildSuccessBadge(),
+                    const SizedBox(height: 16),
+                    _buildEmailRow(),
+                  ],
                 ),
-              );
-            }),
-          ],
+              ),
+              _buildActionButtons(context),
+            ],
+          ),
         ),
-      ),
-    );
+      ),    );
   }
 
-  Widget _buildShippedStatusCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            Icons.local_shipping_outlined,
-            color: Colors.blue[800],
-            size: 40,
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Shipped',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: Colors.blue[800],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Your order is on its way.',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const Text(
-                  'Estimated delivery by March 15th, 2026',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPaymentSuccessDetails() {
+  Widget _buildSuccessBadge() {
     return Column(
       children: [
-        Image.asset('assets/pay_success.png', height: 100),
-        const SizedBox(height: 16),
-        const Text(
-          'Your payment has been processed successfully.\nYou will receive a confirmation email shortly.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey, fontSize: 14),
+        Container(
+          width: 80,
+          height: 80,
+          decoration: const BoxDecoration(
+            color: Color(0xFFDCFCE7),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: Color(0xFF16A34A),
+            size: 44,
+          ),
         ),
         const SizedBox(height: 16),
-        const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.email_outlined, color: Colors.grey),
-            SizedBox(width: 8),
-            Text('Marcusoris1@gmail.com', style: TextStyle(color: Colors.grey)),
-          ],
+        const Text(
+          'Payment Successful',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            color: Colors.black,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Order #$orderNumber has been placed successfully.\nYou will receive a confirmation email shortly.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Colors.grey[500],
+            fontSize: 13.5,
+            height: 1.5,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildActionButtons(VoidCallback function) {
-    return Column(
+  Widget _buildEmailRow() {
+    final buyerEmail = AppSession.instance.buyerEmail;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        ElevatedButton(
-          onPressed: function,
+        Icon(Icons.email_outlined, color: Colors.grey[400], size: 16),
+        const SizedBox(width: 6),
+        Text(
+          buyerEmail.isNotEmpty ? buyerEmail : 'customer@example.com',
+          style: TextStyle(color: Colors.grey[500], fontSize: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ElevatedButton.icon(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => OrderDetailScreen(orderId: orderId),
+              ),
+            );
+          },
+          icon: const Icon(Icons.receipt_long_outlined, color: Colors.white, size: 18),
+          label: const Text(
+            'View Order Details',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.black,
-            minimumSize: const Size(double.infinity, 60),
+            elevation: 0,
+            minimumSize: const Size(double.infinity, 56),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
             ),
-          ),
-          child: const Text(
-            'View Receipt',
-            style: TextStyle(color: Colors.white, fontSize: 16),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         OutlinedButton(
-          onPressed: () {},
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) =>  TrackOrderScreen(orderId: orderId,)),
+            );
+          },
           style: OutlinedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 60),
+            minimumSize: const Size(double.infinity, 56),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(30),
             ),
-            side: BorderSide(color: Colors.transparent),
+            side: const BorderSide(color: Color(0xFFE5E7EB), width: 1.5),
           ),
           child: const Text(
-            'View Orders status',
-            style: TextStyle(color: Colors.black, fontSize: 16),
+            'Track Your Order',
+            style: TextStyle(
+              color: Colors.black,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],

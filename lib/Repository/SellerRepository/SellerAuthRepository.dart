@@ -1,4 +1,3 @@
-// lib/repositories/seller_auth_repository.dart
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
@@ -6,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mime/mime.dart';
 import '../../Constants/ApiConstants.dart';
 import '../../Models/SellerModels/SellerAuthModels.dart';
-
+import '../../Models/SellerModels/SellerLoginandProfleModels.dart' show PasswordValidation, RefreshTokenRequest, RefreshTokenResponse;
 
 class SellerAuthRepository {
   final http.Client client;
@@ -20,7 +19,359 @@ class SellerAuthRepository {
     return '${ApiConstants.baseUrlSeller}$endpoint';
   }
 
-  // Step 1: Create Wallet (Sign Up with Email & Password)
+  // ==================== APPLE AUTH METHODS ====================
+
+  Future<AuthResponse> appleAuth({
+    required String identityToken,
+    Map<String, String>? fullName,
+    String? email,
+  }) async {
+    try {
+      final request = AppleAuthRequest(
+        identityToken: identityToken,
+        fullName: fullName,
+        email: email,
+      );
+
+      final response = await client.post(
+        Uri.parse(_buildUrl(ApiConstants.appleAuth)),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+
+      print('URL: ${_buildUrl(ApiConstants.appleAuth)}');
+      print('Request Body: ${jsonEncode(request.toJson())}');
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return AuthResponse.fromJson(data);
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        return AuthResponse(
+          success: false,
+          message: errorData['message'] ?? 'Apple authentication failed',
+          errors: errorData['errors'] != null
+              ? _parseErrors(errorData['errors'])
+              : null,
+          useAppleAuth: errorData['useAppleAuth'],
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error with Apple auth: $e');
+      }
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<AuthResponse> linkAppleAccount({
+    required String token,
+    required String identityToken,
+    Map<String, String>? fullName,
+  }) async {
+    try {
+      final request = LinkAppleRequest(
+        identityToken: identityToken,
+        fullName: fullName,
+      );
+
+      final response = await client.post(
+        Uri.parse(_buildUrl(ApiConstants.linkApple)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return AuthResponse.fromJson(data);
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        return AuthResponse(
+          success: false,
+          message: errorData['message'] ?? 'Failed to link Apple account',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error linking Apple account: $e');
+      }
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<AuthResponse> unlinkAppleAccount({
+    required String token,
+  }) async {
+    try {
+      final response = await client.post(
+        Uri.parse(_buildUrl(ApiConstants.unlinkApple)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return AuthResponse.fromJson(data);
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        return AuthResponse(
+          success: false,
+          message: errorData['message'] ?? 'Failed to unlink Apple account',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error unlinking Apple account: $e');
+      }
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== GOOGLE AUTH METHODS ====================
+
+  Future<AuthResponse> googleAuth({
+    required String idToken,
+  }) async {
+    try {
+      final request = GoogleAuthRequest(idToken: idToken);
+
+      final response = await client.post(
+        Uri.parse(_buildUrl(ApiConstants.googleAuth)),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+
+      print('URL: ${_buildUrl(ApiConstants.googleAuth)}');
+      print('Request Body: ${jsonEncode(request.toJson())}');
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return AuthResponse.fromJson(data);
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        return AuthResponse(
+          success: false,
+          message: errorData['message'] ?? 'Google authentication failed',
+          errors: errorData['errors'] != null
+              ? _parseErrors(errorData['errors'])
+              : null,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error with Google auth: $e');
+      }
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<AuthResponse> linkGoogleAccount({
+    required String token,
+    required String idToken,
+  }) async {
+    try {
+      final request = LinkGoogleRequest(idToken: idToken);
+
+      final response = await client.post(
+        Uri.parse(_buildUrl(ApiConstants.linkGoogle)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return AuthResponse.fromJson(data);
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        return AuthResponse(
+          success: false,
+          message: errorData['message'] ?? 'Failed to link Google account',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error linking Google account: $e');
+      }
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<AuthResponse> unlinkGoogleAccount({
+    required String token,
+  }) async {
+    try {
+      final response = await client.post(
+        Uri.parse(_buildUrl(ApiConstants.unlinkGoogle)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return AuthResponse.fromJson(data);
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        return AuthResponse(
+          success: false,
+          message: errorData['message'] ?? 'Failed to unlink Google account',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error unlinking Google account: $e');
+      }
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  // ==================== PICKUP ADDRESS METHODS ====================
+
+  Future<AuthResponse> addPickupAddress({
+    required String token,
+    required PickupAddressRequest request,
+  }) async {
+    try {
+      final response = await client.post(
+        Uri.parse(_buildUrl(ApiConstants.addPickupAddress)),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+
+      print('URL: ${_buildUrl(ApiConstants.addPickupAddress)}');
+      print('Request Body: ${jsonEncode(request.toJson())}');
+      print('Response Status: ${response.statusCode}');
+      print('Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return AuthResponse.fromJson(data);
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+
+        // Parse detailed validation errors
+        List<String> detailedErrors = [];
+        String validationSource = '';
+        bool needsCorrection = false;
+        Map<String, dynamic>? suggestedAddress;
+
+        // Check for validation errors structure
+        if (errorData['errors'] != null) {
+          if (errorData['errors'] is List) {
+            detailedErrors = List<String>.from(errorData['errors']);
+          } else if (errorData['errors'] is String) {
+            detailedErrors = [errorData['errors']];
+          }
+        }
+
+        // Get validation source if available
+        if (errorData['validationSource'] != null) {
+          validationSource = errorData['validationSource'];
+        }
+
+        // Check if needs correction
+        if (errorData['needsCorrection'] != null) {
+          needsCorrection = errorData['needsCorrection'];
+        }
+
+        // Get suggested address if available
+        if (errorData['suggestedAddress'] != null || errorData['validatedAddress'] != null) {
+          suggestedAddress = errorData['suggestedAddress'] ?? errorData['validatedAddress'];
+        }
+
+        // Get original address for context
+        Map<String, dynamic>? originalAddress;
+        if (errorData['address'] != null) {
+          originalAddress = errorData['address'];
+        }
+
+        return AuthResponse(
+          success: false,
+          message: errorData['message'] ?? 'Failed to add pickup address',
+          errors: detailedErrors.isNotEmpty ? detailedErrors : null,
+          validationSource: validationSource,
+          needsCorrection: needsCorrection,
+          suggestedAddress: suggestedAddress,
+          originalAddress: originalAddress,
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error adding pickup address: $e');
+      }
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<List<PickupAddressModel>> getPickupAddresses(String token) async {
+    try {
+      final response = await client.get(
+        Uri.parse(_buildUrl(ApiConstants.getPickupAddresses)),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        if (data['pickupAddresses'] != null) {
+          return (data['pickupAddresses'] as List)
+              .map((addr) => PickupAddressModel.fromJson(addr))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error getting pickup addresses: $e');
+      }
+      return [];
+    }
+  }
+
+  // ==================== EXISTING AUTH METHODS ====================
+
   Future<AuthResponse> createWallet({
     required String email,
     required String password,
@@ -63,7 +414,6 @@ class SellerAuthRepository {
     }
   }
 
-  // Step 2: Verify Email with OTP
   Future<AuthResponse> verifyEmail({
     required String email,
     required String otp,
@@ -103,7 +453,6 @@ class SellerAuthRepository {
     }
   }
 
-  // Resend OTP
   Future<AuthResponse> resendOTP({
     required String email,
   }) async {
@@ -139,7 +488,6 @@ class SellerAuthRepository {
     }
   }
 
-  // Step 3: Submit Store Details (with optional logo upload)
   Future<AuthResponse> submitStoreDetails({
     required String token,
     required StoreDetailsRequest request,
@@ -149,18 +497,14 @@ class SellerAuthRepository {
       var uri = Uri.parse(_buildUrl(ApiConstants.submitStoreDetails));
 
       if (includeLogo && request.logoPath != null) {
-        // Multipart request for file upload
         var multipartRequest = http.MultipartRequest('POST', uri);
 
-        // Add headers
         multipartRequest.headers['Authorization'] = 'Bearer $token';
 
-        // Add text fields
         multipartRequest.fields['storeName'] = request.storeName;
         multipartRequest.fields['phoneNumber'] = request.phoneNumber;
         multipartRequest.fields['businessEmail'] = request.businessEmail;
 
-        // Send categories as array
         for (int i = 0; i < request.category.length; i++) {
           multipartRequest.fields['category[$i]'] = request.category[i];
         }
@@ -170,44 +514,34 @@ class SellerAuthRepository {
         if (request.logoPath != null) {
           final file = File(request.logoPath!);
 
-          if (!await file.exists()) {
-            throw Exception("File not found");
+          if (await file.exists()) {
+            final mimeTypeData = lookupMimeType(file.path)?.split('/');
+
+            var logoFile = await http.MultipartFile.fromPath(
+              'logo',
+              file.path,
+              contentType: mimeTypeData != null
+                  ? http.MediaType(mimeTypeData[0], mimeTypeData[1])
+                  : http.MediaType('image', 'jpeg'),
+            );
+
+            multipartRequest.files.add(logoFile);
           }
-
-          final mimeTypeData = lookupMimeType(file.path)?.split('/');
-
-          var logoFile = await http.MultipartFile.fromPath(
-            'logo',
-            file.path,
-            contentType: mimeTypeData != null
-                ? http.MediaType(mimeTypeData[0], mimeTypeData[1])
-                : http.MediaType('image', 'jpeg'), // fallback
-          );
-
-          multipartRequest.files.add(logoFile);
         }
 
-        // Send request
         var streamedResponse = await multipartRequest.send();
         var response = await http.Response.fromStream(streamedResponse);
-
-        print("STATUS: ${response.statusCode}");
-        print("BODY: ${response.body}");
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           final Map<String, dynamic> data = jsonDecode(response.body);
           return AuthResponse.fromJson(data);
         } else {
           final Map<String, dynamic> errorData = jsonDecode(response.body);
-
-          // Parse validation errors
           String errorMessage = errorData['message'] ?? 'Failed to submit store details';
 
-          // Check for detailed validation errors
           if (errorData['errors'] != null && errorData['errors'] is List) {
             List<dynamic> errors = errorData['errors'];
             if (errors.isNotEmpty) {
-              // Get the first error message
               var firstError = errors[0];
               if (firstError is Map && firstError['msg'] != null) {
                 errorMessage = firstError['msg'];
@@ -226,7 +560,6 @@ class SellerAuthRepository {
           );
         }
       } else {
-        // Regular JSON request without file
         final response = await client.post(
           uri,
           headers: {
@@ -241,8 +574,6 @@ class SellerAuthRepository {
           return AuthResponse.fromJson(data);
         } else {
           final Map<String, dynamic> errorData = jsonDecode(response.body);
-
-          // Parse validation errors
           String errorMessage = errorData['message'] ?? 'Failed to submit store details';
 
           if (errorData['errors'] != null && errorData['errors'] is List) {
@@ -277,7 +608,68 @@ class SellerAuthRepository {
     }
   }
 
-// Helper method to parse errors from backend
+  Future<AuthResponse> checkTokenValidity(String token) async {
+    try {
+      final response = await client.get(
+        Uri.parse(_buildUrl(ApiConstants.checkToken)),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return AuthResponse.fromJson(data);
+      } else {
+        return AuthResponse(
+          success: false,
+          message: 'Invalid or expired token',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error checking token validity: $e');
+      }
+      return AuthResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+      );
+    }
+  }
+
+  Future<RefreshTokenResponse> refreshToken(RefreshTokenRequest request) async {
+    try {
+      final response = await client.post(
+        Uri.parse(_buildUrl(ApiConstants.refreshToken)),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> data = jsonDecode(response.body);
+        return RefreshTokenResponse.fromJson(data);
+      } else {
+        final Map<String, dynamic> errorData = jsonDecode(response.body);
+        return RefreshTokenResponse(
+          success: false,
+          message: errorData['message'] ?? 'Failed to refresh token',
+          token: '',
+        );
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error refreshing token: $e');
+      }
+      return RefreshTokenResponse(
+        success: false,
+        message: 'Network error: ${e.toString()}',
+        token: '',
+      );
+    }
+  }
+
   List<String> _parseErrors(dynamic errors) {
     List<String> errorMessages = [];
 
@@ -306,37 +698,6 @@ class SellerAuthRepository {
     return errorMessages;
   }
 
-  // Check token validity
-  Future<AuthResponse> checkTokenValidity(String token) async {
-    try {
-      final response = await client.get(
-        Uri.parse(_buildUrl('/auth/check-token')), // You might need to add this endpoint to ApiConstants
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        return AuthResponse.fromJson(data);
-      } else {
-        return AuthResponse(
-          success: false,
-          message: 'Invalid or expired token',
-        );
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error checking token validity: $e');
-      }
-      return AuthResponse(
-        success: false,
-        message: 'Network error: ${e.toString()}',
-      );
-    }
-  }
-
-  // Helper method to validate password (client-side validation)
   PasswordValidation validatePassword(String password) {
     final List<String> errors = [];
 
@@ -351,9 +712,6 @@ class SellerAuthRepository {
     }
     if (!password.contains(RegExp(r'[0-9]'))) {
       errors.add('Password must contain at least one number');
-    }
-    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
-      errors.add('Password must contain at least one special character');
     }
 
     return PasswordValidation(

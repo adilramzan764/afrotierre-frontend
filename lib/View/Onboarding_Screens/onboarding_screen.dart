@@ -28,10 +28,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   void _onSignIn() {
     if (selectedWalletType == 'Seller') {
       Navigator.push(context,
-          MaterialPageRoute(builder: (_) => SignInAccountSellerScreen()));
+          MaterialPageRoute(builder: (_) => SignInAccountSellerScreen(isOnboarding: true,)));
     } else if (selectedWalletType == 'Buyer') {
       Navigator.push(context,
-          MaterialPageRoute(builder: (_) => SignInAccountBuyerScreen()));
+          MaterialPageRoute(builder: (_) => SignInAccountBuyerScreen(isOnboarding: true,)));
     }
   }
 

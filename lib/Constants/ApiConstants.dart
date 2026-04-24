@@ -18,6 +18,10 @@ class ApiConstants {
   static const String verifyEmail = '/auth/verify-email';
   static const String resendOTP = '/auth/resend-otp';
   static const String submitStoreDetails = '/auth/submit-store-details';
+  static const String addPickupAddress = '/auth/add-pickup-address';
+  static const String getPickupAddresses = '/auth/pickup-addresses';
+
+
 
   static const String login = '/auth/login';
   static const String checkToken = '/auth/check-token';
@@ -29,6 +33,11 @@ class ApiConstants {
   static const String googleAuth = '/auth/google';
   static const String linkGoogle = '/auth/google/link';
   static const String unlinkGoogle = '/auth/google/unlink';
+
+  static const String appleAuth = '/auth/apple';
+  static const String linkApple = '/auth/apple/link';
+  static const String unlinkApple = '/auth/apple/unlink';
+  static const String refreshToken = '/auth/refresh-token';
 
   // Password reset endpoints
   static const String passwordReset_sendOTP = '/password-reset/forgot-password';
@@ -52,8 +61,8 @@ class ApiConstants {
   static const String updateStock = '/api/seller/products/stock';
   static const String getProductsByCategory = '/api/seller/products/category';
   static const String getSellerAllowedCategories = '/products/categories';
-  static const String publishProduct = '/api/seller/products/publish';
-  static const String unpublishProduct = '/api/seller/products/unpublish';
+  static const String publishProduct = '/products/publish';
+  static const String unpublishProduct = '/products/unpublish';
 
 
   //Buyer endpoints
@@ -61,6 +70,15 @@ class ApiConstants {
   static const String login_buyer = '/auth/login';
   static const String checkToken_buyer = '/auth/check-token';
   static const String refreshToken_buyer = '/auth/refresh-token'; // Added this
+
+  static const String googleAuthBuyer = '/auth/google-auth';
+  static const String linkGoogleBuyer = '/auth/link-google';
+  static const String unlinkGoogleBuyer = '/auth/unlink-google';
+
+  static const String appleAuthBuyer = '/auth/apple';
+  static const String linkAppleBuyer = '/auth/apple/link';
+  static const String unlinkAppleBuyer = '/auth/apple/unlink';
+
 
 // Buyer Home endpoints
   static const String home = '/home';

@@ -5,7 +5,7 @@ class CartItem {
   final String productId;
   final int quantity;
   final DateTime addedAt;
-  final ProductDetails? productDetails;
+  final CartProductDetails? productDetails;
 
   CartItem({
     required this.id,
@@ -17,12 +17,12 @@ class CartItem {
 
   factory CartItem.fromJson(Map<String, dynamic> json) {
     String productIdValue = '';
-    ProductDetails? productDetailsValue;
+    CartProductDetails? productDetailsValue;
 
     // Handle productId which can be either a String or a Map
     if (json['productId'] is Map<String, dynamic>) {
       final productMap = json['productId'] as Map<String, dynamic>;
-      productDetailsValue = ProductDetails.fromJson(productMap);
+      productDetailsValue = CartProductDetails.fromJson(productMap);
       productIdValue = productMap['_id'] ?? productMap['id'] ?? '';
     } else if (json['productId'] is String) {
       productIdValue = json['productId'] as String;
@@ -30,7 +30,7 @@ class CartItem {
 
     // Also check for separate productDetails field
     if (json['productDetails'] != null && json['productDetails'] is Map<String, dynamic>) {
-      productDetailsValue = ProductDetails.fromJson(json['productDetails']);
+      productDetailsValue = CartProductDetails.fromJson(json['productDetails']);
     }
 
     return CartItem(
@@ -59,7 +59,7 @@ class CartItem {
     String? productId,
     int? quantity,
     DateTime? addedAt,
-    ProductDetails? productDetails,
+    CartProductDetails? productDetails,
   }) {
     return CartItem(
       id: id ?? this.id,
@@ -71,7 +71,7 @@ class CartItem {
   }
 }
 
-class ProductDetails {
+class CartProductDetails {
   final String id;
   final String name;
   final double price;
@@ -84,7 +84,7 @@ class ProductDetails {
   final bool inStock;
   final String? status;
 
-  ProductDetails({
+  CartProductDetails({
     required this.id,
     required this.name,
     required this.price,
@@ -98,7 +98,7 @@ class ProductDetails {
     this.status,
   });
 
-  factory ProductDetails.fromJson(Map<String, dynamic> json) {
+  factory CartProductDetails.fromJson(Map<String, dynamic> json) {
     // Get image URL
     String? imageUrlValue;
     if (json['image'] != null && json['image'].toString().isNotEmpty) {
@@ -129,7 +129,7 @@ class ProductDetails {
     final statusValue = json['status'] ?? '';
     final bool inStockValue = stockValue > 0 || statusValue.toLowerCase() == 'in stock';
 
-    return ProductDetails(
+    return CartProductDetails(
       id: json['_id'] ?? json['id'] ?? '',
       name: json['name'] ?? '',
       price: originalPrice,

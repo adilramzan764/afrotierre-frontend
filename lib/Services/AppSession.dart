@@ -1,4 +1,3 @@
-// lib/services/app_session.dart
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../Models/BuyerModels/BuyerLoginandProfileModels.dart';
@@ -15,6 +14,7 @@ class AppSession {
   static const String _keyRefreshToken = 'refresh_token';
   static const String _keyUserId = 'user_id';
   static const String _keyUserType = 'user_type';
+  static const String _keyLastUserType = 'last_user_type'; // NEW: Always saved
   static const String _keySellerProfile = 'seller_profile';
   static const String _keyBuyerProfile = 'buyer_profile';
   static const String _keyRegistrationStep = 'registration_step';
@@ -56,29 +56,38 @@ class AppSession {
 
   // ========== REMEMBER ME FUNCTIONALITY ==========
 
-  // Check if Remember Me is enabled
   Future<bool> isRememberMeEnabled() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(_keyRememberMe) ?? false;
   }
 
-  // Enable/Disable Remember Me
   Future<void> setRememberMe(bool enabled) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_keyRememberMe, enabled);
-
-    if (!enabled) {
-      // Clear saved data if Remember Me is disabled
-      await clearSavedData();
-    }
   }
 
-  // Save session data to SharedPreferences
+  // Save ONLY the last user type (always saved, regardless of Remember Me)
+  Future<void> _saveLastUserType(String type) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_keyLastUserType, type);
+    print('💾 Saved last_user_type: $type');
+  }
+
+  // Get last user type (always available)
+  Future<String?> getLastUserType() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_keyLastUserType);
+  }
+
+  // Save session data to SharedPreferences (only if Remember Me is enabled)
   Future<void> saveSessionData() async {
     final prefs = await SharedPreferences.getInstance();
     final rememberMe = prefs.getBool(_keyRememberMe) ?? false;
 
-    if (!rememberMe) return; // Only save if Remember Me is enabled
+    if (!rememberMe) {
+      print('📝 Remember Me disabled, not saving full session');
+      return;
+    }
 
     await prefs.setString(_keyAuthToken, authToken ?? '');
     await prefs.setString(_keyRefreshToken, refreshToken ?? '');
@@ -87,7 +96,6 @@ class AppSession {
     await prefs.setString(_keyRegistrationStep, registrationStep ?? '');
     await prefs.setBool(_keyIsEmailVerified, isEmailVerified ?? false);
 
-    // Save seller profile as JSON string
     if (sellerProfile != null) {
       final profileJson = json.encode(sellerProfile!.toJson());
       await prefs.setString(_keySellerProfile, profileJson);
@@ -95,7 +103,6 @@ class AppSession {
       await prefs.remove(_keySellerProfile);
     }
 
-    // Save buyer profile as JSON string
     if (buyerProfile != null) {
       final profileJson = json.encode(buyerProfile!.toJson());
       await prefs.setString(_keyBuyerProfile, profileJson);
@@ -103,9 +110,7 @@ class AppSession {
       await prefs.remove(_keyBuyerProfile);
     }
 
-    print('💾 Session data saved to SharedPreferences');
-    print('Saved Profile: ${sellerProfile != null ? 'Seller' : buyerProfile != null ? 'Buyer' : 'No profile'}');
-    print('Profile Data: ${sellerProfile != null ? sellerProfile!.toJson() : buyerProfile != null ? buyerProfile!.toJson() : 'N/A'}');
+    print('💾 Session data saved to SharedPreferences (Remember Me ON)');
   }
 
   // Load session data from SharedPreferences
@@ -120,7 +125,6 @@ class AppSession {
       }
 
       final savedToken = prefs.getString(_keyAuthToken);
-      final savedRefreshToken = prefs.getString(_keyRefreshToken);
       final savedUserId = prefs.getString(_keyUserId);
       final savedUserType = prefs.getString(_keyUserType);
 
@@ -129,15 +133,13 @@ class AppSession {
         return false;
       }
 
-      // Load basic session data
       authToken = savedToken;
-      refreshToken = savedRefreshToken;
+      refreshToken = prefs.getString(_keyRefreshToken);
       userId = savedUserId;
       userType = savedUserType;
       registrationStep = prefs.getString(_keyRegistrationStep);
       isEmailVerified = prefs.getBool(_keyIsEmailVerified);
 
-      // Load seller profile if exists
       final savedSellerProfileJson = prefs.getString(_keySellerProfile);
       if (savedSellerProfileJson != null && savedSellerProfileJson.isNotEmpty) {
         try {
@@ -149,7 +151,6 @@ class AppSession {
         }
       }
 
-      // Load buyer profile if exists
       final savedBuyerProfileJson = prefs.getString(_keyBuyerProfile);
       if (savedBuyerProfileJson != null && savedBuyerProfileJson.isNotEmpty) {
         try {
@@ -161,13 +162,8 @@ class AppSession {
         }
       }
 
-      print('📝 Session data loaded from SharedPreferences');
-      print('   Token: ${authToken?.substring(0, authToken!.length > 20 ? 20 : authToken!.length)}...');
-      print('   User ID: $userId');
+      print('📝 Session data loaded');
       print('   User Type: $userType');
-      print('   Registration Step: $registrationStep');
-      print('   Has Profile: ${sellerProfile != null || buyerProfile != null}');
-
       return true;
     } catch (e) {
       print('❌ Error loading saved session data: $e');
@@ -186,17 +182,17 @@ class AppSession {
     await prefs.remove(_keyBuyerProfile);
     await prefs.remove(_keyRegistrationStep);
     await prefs.remove(_keyIsEmailVerified);
-    print('🗑️ Cleared saved session data');
+    // NOTE: Do NOT clear _keyLastUserType and _keyRememberMe here
+    print('🗑️ Cleared saved session data (kept last_user_type)');
   }
 
-  // Clear all data (including Remember Me setting)
+  // Clear all data (including Remember Me setting and last user type)
   Future<void> clearAllData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     print('🗑️ Cleared all SharedPreferences data');
   }
 
-  // Clear session data in memory
   void clearSession() {
     authToken = null;
     refreshToken = null;
@@ -209,13 +205,12 @@ class AppSession {
     print('🧹 Cleared in-memory session data');
   }
 
-  // Add this method to your AppSession class
   static Future<void> ensureInitialized() async {
     if (instance.authToken == null) {
       await instance.loadSavedSessionData();
     }
   }
-  // Update seller profile and save to SharedPreferences
+
   Future<void> updateSellerProfile(SellerModel profile) async {
     sellerProfile = profile;
     registrationStep = profile.registrationStep;
@@ -223,7 +218,6 @@ class AppSession {
     await saveSessionData();
   }
 
-  // Update buyer profile and save to SharedPreferences
   Future<void> updateBuyerProfile(BuyerData profile) async {
     buyerProfile = profile;
     registrationStep = profile.registrationStep;
@@ -231,7 +225,6 @@ class AppSession {
     await saveSessionData();
   }
 
-  // Update registration step
   Future<void> updateRegistrationStep(String step) async {
     registrationStep = step;
     if (sellerProfile != null) {
@@ -256,20 +249,30 @@ class AppSession {
     await saveSessionData();
   }
 
-  // Save current state to SharedPreferences
   Future<void> saveCurrentState() async {
     await saveSessionData();
   }
 
   // Set session after seller login
   Future<void> setSellerSession(String token, SellerModel seller) async {
-    authToken = token;
-    userId = seller.id;
-    userType = 'seller';
-    sellerProfile = seller;
-    registrationStep = seller.registrationStep;
-    isEmailVerified = seller.isEmailVerified;
+    print('🟢 Setting seller session...');
+
+    this.authToken = token;
+    this.userId = seller.id;
+    this.userType = 'seller';
+    this.sellerProfile = seller;
+    this.registrationStep = seller.registrationStep;
+    this.isEmailVerified = seller.isEmailVerified;
+
+    // ALWAYS save last user type (even if Remember Me is off)
+    await _saveLastUserType('seller');
+
+    // Save full session only if Remember Me is enabled
     await saveSessionData();
+
+    print('✅ Seller session set successfully');
+    print('   UserType: $userType');
+    print('   Last user type saved: seller');
   }
 
   // Set session after buyer login
@@ -278,30 +281,38 @@ class AppSession {
     required String refreshToken,
     required BuyerData buyer,
   }) async {
+    print('🟢 Setting buyer session...');
+
     this.authToken = token;
     this.refreshToken = refreshToken;
-    userId = buyer.id;
-    userType = 'buyer';
-    buyerProfile = buyer;
-    registrationStep = buyer.registrationStep;
-    isEmailVerified = buyer.isEmailVerified;
+    this.userId = buyer.id;
+    this.userType = 'buyer';
+    this.buyerProfile = buyer;
+    this.registrationStep = buyer.registrationStep;
+    this.isEmailVerified = buyer.isEmailVerified;
+
+    // ALWAYS save last user type (even if Remember Me is off)
+    await _saveLastUserType('buyer');
+
+    // Save full session only if Remember Me is enabled
     await saveSessionData();
+
+    print('✅ Buyer session set successfully');
+    print('   UserType: $userType');
+    print('   Last user type saved: buyer');
   }
 
-  // Get valid token (checks and auto-refreshes if needed)
   Future<String?> getValidToken() async {
     if (authToken == null || refreshToken == null) {
       return null;
     }
-
-    // You can implement token validation and refresh logic here
-    // For now, just return the current token
     return authToken;
   }
 
-  // Logout
   Future<void> logout() async {
     clearSession();
     await clearSavedData();
+    // Note: last_user_type is NOT cleared on logout
+    print('✅ Logout complete');
   }
 }

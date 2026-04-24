@@ -104,6 +104,7 @@ class BuyerPaymentRepository {
       );
 
       print('Get payment methods response: ${response.statusCode}');
+      print("Response body: ${response.body}");
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> data = jsonDecode(response.body);
@@ -158,8 +159,10 @@ class BuyerPaymentRepository {
           'Authorization': 'Bearer $token',
         },
       );
+      print('URL: ${Uri.parse('$baseUrl/payment/payment-methods/$paymentMethodId/default')}');
 
       print('Set default payment method response: ${response.statusCode}');
+      print('Response body: ${response.body}');
 
       if (response.statusCode != 200) {
         final Map<String, dynamic> error = jsonDecode(response.body);

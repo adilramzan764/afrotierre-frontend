@@ -560,9 +560,9 @@ class _PersonalInformationScreenState extends State<PersonalInformationScreen> {
                     child: _buildTextField(
                       label: 'Country',
                       controller: _countryController,
-                      hint: 'Nigeria',
+                      hint: 'United States',
                       textCapitalization: TextCapitalization.words,
-                      enabled: false,
+                      // enabled: false,
                     ),
                   ),
                   const SizedBox(width: 12),
