@@ -14,6 +14,7 @@ import '../../Models/BuyerModels/BuyerLoginandProfileModels.dart'
 import '../../Repository/BuyerRepository/BuyerOrderRepository.dart';
 import '../../Repository/BuyerRepository/CheckoutRepository.dart';
 import '../../Services/AppSession.dart';
+import '../../res/Widgets/ErrorDialog.dart';
 import '../../res/Widgets/ShimmerBox.dart';
 
 class CheckoutScreen extends StatefulWidget {
@@ -129,17 +130,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   Future<void> _placeOrder() async {
     if (_selectedCard == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please add a payment method in your profile')),
+      showErrorDialog(
+        context,
+        title: 'Payment Method Required',
+        message: 'Please add a payment method in your profile before placing an order.',
+        buttonText: 'Add Payment Method',
+        onPressed: () {
+          Navigator.pushNamed(context, '/profile');
+        },
       );
       return;
     }
 
     if (_shippingAddress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Please add a delivery address in your profile')),
+      showErrorDialog(
+        context,
+        title: 'Shipping Address Required',
+        message: 'Please add a delivery address in your profile before placing an order.',
+        buttonText: 'Add Address',
+        onPressed: () {
+          Navigator.pushNamed(context, '/profile');
+        },
       );
       return;
     }
@@ -169,12 +180,85 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       }
     } catch (e) {
       setState(() => _processingPayment = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Payment failed: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+
+      if (mounted) {
+        // BETTER ERROR PARSING - Extract the actual message from the backend
+        String errorMessage = e.toString();
+
+        // Remove the "Exception:" prefix and any wrapping text
+        errorMessage = errorMessage.replaceAll('Exception:', '').trim();
+        errorMessage = errorMessage.replaceAll('Failed to create order:', '').trim();
+
+        // Try to extract the actual backend message
+        // The error comes as: Exception: Your card has insufficient funds.
+        // or: Exception: Failed to create order: Your card has insufficient funds.
+
+        // Check if the message contains the backend error format
+        if (errorMessage.contains('Your card has insufficient funds')) {
+          errorMessage = 'Your card has insufficient funds.';
+        } else if (errorMessage.contains('insufficient funds')) {
+          errorMessage = 'Your card has insufficient funds to complete this payment.';
+        }
+
+        print("Parsed error message: $errorMessage"); // Debug log
+
+        // Show specific error dialog based on the actual message
+        if (errorMessage.toLowerCase().contains('insufficient funds')) {
+          showErrorDialog(
+            context,
+            title: 'Insufficient Funds ❌',
+            message: 'Your card has insufficient funds to complete this payment. Please use a different payment method or add funds to your card.',
+            buttonText: 'Try Different Card',
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              // Navigate to payment methods to select different card
+              // Navigator.pushNamed(context, '/payment-methods');
+            },
+          );
+        } else if (errorMessage.toLowerCase().contains('card declined')) {
+          showErrorDialog(
+            context,
+            title: 'Card Declined',
+            message: 'Your card was declined. Please contact your bank or use a different payment method.',
+            buttonText: 'Try Again',
+            onPressed: () {
+              Navigator.pop(context);
+              // _placeOrder(); // Retry the payment
+            },
+          );
+        } else if (errorMessage.toLowerCase().contains('no payment method')) {
+          showErrorDialog(
+            context,
+            title: 'Payment Method Missing',
+            message: 'No valid payment method found. Please add a payment method in your profile.',
+            buttonText: 'Add Payment Method',
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          );
+        } else if (errorMessage.toLowerCase().contains('insufficient stock')) {
+          showErrorDialog(
+            context,
+            title: 'Insufficient Stock',
+            message: errorMessage,
+            buttonText: 'Update Cart',
+            onPressed: () {
+              Navigator.pop(context);
+            },
+          );
+        } else {
+          // Generic error dialog with the actual backend message
+          showErrorDialog(
+            context,
+            title: 'Payment Failed',
+            message: errorMessage, // Show the actual error message from backend
+            buttonText: 'Try Again',
+            onPressed: () {
+              Navigator.pop(context); // Just close the dialog
+            },
+          );
+        }
+      }
     }
   }
 

@@ -22,23 +22,28 @@ class BuyerOrderRepository {
 
   // Helper method to handle API responses
   dynamic _handleResponse(http.Response response) {
+    // First, try to parse the response body
+    Map<String, dynamic> data;
+    try {
+      data = json.decode(response.body);
+    } catch (e) {
+      throw 'Invalid response from server';
+    }
+
+    // Check for success status codes
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      final Map<String, dynamic> data = json.decode(response.body);
       if (data['success'] == true) {
         return data;
       } else {
-        throw Exception(data['message'] ?? 'Request failed');
+        // Throw the message from the response
+        throw data['message'] ?? 'Request failed';
       }
     } else {
-      try {
-        final Map<String, dynamic> errorData = json.decode(response.body);
-        throw Exception(errorData['message'] ?? 'Server error: ${response.statusCode}');
-      } catch (e) {
-        throw Exception('Server error: ${response.statusCode}');
-      }
+      // For error status codes (400, 500, etc.)
+      // The backend sends {"success": false, "message": "Your card has insufficient funds."}
+      throw data['message'] ?? 'Server error: ${response.statusCode}';
     }
   }
-
   /**
    * Create a new order
    * POST /api/buyer/orders
@@ -62,8 +67,9 @@ class BuyerOrderRepository {
       final data = _handleResponse(response);
       return CreateOrderResponse.fromJson(data['data']);
     } catch (e) {
-      throw Exception('Failed to create order: $e');
-    }
+      print("Error in createOrder: $e");
+      // Re-throw the actual error message
+      throw e.toString();    }
   }
 
   /**

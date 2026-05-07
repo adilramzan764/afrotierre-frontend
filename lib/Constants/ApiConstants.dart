@@ -7,8 +7,8 @@ class ApiConstants {
   static const String baseUrlSeller = 'http://184.72.76.52/api/seller';
   // static const String baseUrlSeller = 'http://192.168.100.170:5000/api/seller';
 
-  static const String baseUrlBuyer = 'http://184.72.76.52/api/buyer';
-  // static const String baseUrlBuyer = 'http://192.168.100.170:5000/api/buyer';
+  // static const String baseUrlBuyer = 'http://184.72.76.52/api/buyer';
+  static const String baseUrlBuyer = 'http://192.168.100.170:5000/api/buyer';
 
   // For staging
   // static const String baseUrlSeller = 'https://staging-api.yourdomain.com/api/seller';

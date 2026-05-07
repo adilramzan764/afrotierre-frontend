@@ -1,4 +1,5 @@
 // lib/Repository/BuyerRepository/BuyerPaymentRepository.dart
+
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -9,12 +10,38 @@ import '../../Services/AppSession.dart';
 class BuyerPaymentRepository {
   static const String baseUrl = ApiConstants.baseUrlBuyer;
 
-
   // Get auth token from AppSession
   static Future<String?> _getAuthToken() async {
-    // Make sure AppSession is initialized
     await AppSession.ensureInitialized();
     return AppSession.instance.authToken;
+  }
+
+  // Helper method to handle API responses
+  static dynamic _handleResponse(http.Response response) {
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    // Parse the response body
+    Map<String, dynamic> data;
+    try {
+      data = jsonDecode(response.body);
+    } catch (e) {
+      throw Exception('Invalid response from server');
+    }
+
+    // Check for success status codes
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      if (data['success'] == true) {
+        return data['data'];
+      } else {
+        // Throw the actual message from backend
+        throw data['message'] ?? 'Request failed';
+      }
+    } else {
+      // For error responses (400, 500, etc.) - throw the backend message
+      // This will be "Your card was declined" from your backend
+      throw data['message'] ?? 'Server error: ${response.statusCode}';
+    }
   }
 
   // Setup customer and get client secret
@@ -22,7 +49,7 @@ class BuyerPaymentRepository {
     try {
       final token = await _getAuthToken();
       if (token == null) {
-        throw Exception('User not authenticated');
+        throw Exception('Please login to continue');
       }
 
       final response = await http.post(
@@ -36,13 +63,8 @@ class BuyerPaymentRepository {
       print('Setup customer response: ${response.statusCode}');
       print('Setup customer body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        return data['data'] as Map<String, dynamic>;
-      } else {
-        final Map<String, dynamic> error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to setup customer');
-      }
+      final data = _handleResponse(response);
+      return data as Map<String, dynamic>;
     } catch (e) {
       print('Setup customer error: $e');
       rethrow;
@@ -57,7 +79,7 @@ class BuyerPaymentRepository {
     try {
       final token = await _getAuthToken();
       if (token == null) {
-        throw Exception('User not authenticated');
+        throw Exception('Please login to continue');
       }
 
       final response = await http.post(
@@ -75,16 +97,11 @@ class BuyerPaymentRepository {
       print('Add payment method response: ${response.statusCode}');
       print('Add payment method body: ${response.body}');
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        return data['data'] as Map<String, dynamic>;
-      } else {
-        final Map<String, dynamic> error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to add payment method');
-      }
+      final data = _handleResponse(response);
+      return data as Map<String, dynamic>;
     } catch (e) {
       print('Add payment method error: $e');
-      rethrow;
+      rethrow; // This will now throw "Your card was declined"
     }
   }
 
@@ -123,7 +140,7 @@ class BuyerPaymentRepository {
     try {
       final token = await _getAuthToken();
       if (token == null) {
-        throw Exception('User not authenticated');
+        throw Exception('Please login to continue');
       }
 
       final response = await http.delete(
@@ -150,7 +167,7 @@ class BuyerPaymentRepository {
     try {
       final token = await _getAuthToken();
       if (token == null) {
-        throw Exception('User not authenticated');
+        throw Exception('Please login to continue');
       }
 
       final response = await http.put(
@@ -159,7 +176,6 @@ class BuyerPaymentRepository {
           'Authorization': 'Bearer $token',
         },
       );
-      print('URL: ${Uri.parse('$baseUrl/payment/payment-methods/$paymentMethodId/default')}');
 
       print('Set default payment method response: ${response.statusCode}');
       print('Response body: ${response.body}');
@@ -183,7 +199,7 @@ class BuyerPaymentRepository {
     try {
       final token = await _getAuthToken();
       if (token == null) {
-        throw Exception('User not authenticated');
+        throw Exception('Please login to continue');
       }
 
       final response = await http.post(
@@ -201,13 +217,8 @@ class BuyerPaymentRepository {
 
       print('Create payment intent response: ${response.statusCode}');
 
-      if (response.statusCode == 200) {
-        final Map<String, dynamic> data = jsonDecode(response.body);
-        return data['data'] as Map<String, dynamic>;
-      } else {
-        final Map<String, dynamic> error = jsonDecode(response.body);
-        throw Exception(error['message'] ?? 'Failed to create payment intent');
-      }
+      final data = _handleResponse(response);
+      return data as Map<String, dynamic>;
     } catch (e) {
       print('Create payment intent error: $e');
       rethrow;
