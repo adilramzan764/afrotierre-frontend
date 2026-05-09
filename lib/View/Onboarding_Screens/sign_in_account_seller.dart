@@ -12,6 +12,7 @@ import '../../Models/SellerModels/SellerAuthModels.dart';
 import '../../Repository/SellerRepository/SellerLoginandProfileRepo.dart';
 import '../../Services/AppSession.dart';
 import '../../Services/GoogleSignInService.dart';
+import '../../Services/AppleSignInService.dart';
 import '../../res/Widgets/CustomSnackbar.dart';
 import 'onboarding_screen.dart';
 
@@ -28,6 +29,7 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _isGoogleLoading = false;
+  bool _isAppleLoading = false;
   bool _rememberMe = true;
 
   final TextEditingController _emailController = TextEditingController();
@@ -171,6 +173,118 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
       );
       setState(() {
         _isGoogleLoading = false;
+      });
+    }
+  }
+
+  // ==================== APPLE SIGN-IN METHOD ====================
+
+  Future<void> _handleAppleSignIn() async {
+    setState(() {
+      _isAppleLoading = true;
+    });
+
+    try {
+      print("🟢 Apple Sign-In: Starting...");
+      final appleResult = await AppleSignInService.signIn();
+
+      if (appleResult == null) {
+        print("🔴 Apple Sign-In: User cancelled or failed");
+        setState(() {
+          _isAppleLoading = false;
+        });
+        return;
+      }
+
+      final String identityToken = appleResult['identityToken'];
+      final String? email = appleResult['email'];
+      final String? givenName = appleResult['givenName'];
+      final String? familyName = appleResult['familyName'];
+
+      Map<String, String>? fullName;
+      if (givenName != null || familyName != null) {
+        fullName = {
+          'firstName': givenName ?? '',
+          'lastName': familyName ?? '',
+        };
+      }
+
+      print("🟢 Apple Sign-In: Sending to backend...");
+      final response = await _repo.appleAuth(
+        identityToken: identityToken,
+        email: email,
+        fullName: fullName,
+      );
+
+      print("=== APPLE LOGIN RESPONSE ===");
+      print("Success: ${response.success}");
+      print("Message: ${response.message}");
+      print("Token: ${response.token}");
+      print("=============================");
+
+      if (!mounted) return;
+
+      if (response.success &&
+          response.token != null &&
+          response.seller != null) {
+        print("🟢 Apple Sign-In: Authentication successful");
+
+        // Save session
+        await _session.setSellerSession(response.token!, response.seller!);
+
+        _fetchAndStoreCompleteProfile(response.token!);
+
+        // Save Remember Me preference
+        await _session.setRememberMe(_rememberMe);
+
+        // Navigate based on registration step
+        final step = response.seller?.registrationStep;
+
+        if (step == 'completed') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const VendorBottomNavigationScreen(),
+            ),
+          );
+        } else {
+          CustomSnackbar.showError(
+            context,
+            'User not registered as a seller. Please Sign up to continue.',
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CreateAccountSellerScreen(),
+            ),
+          );
+        }
+      } else {
+        if (response.useAppleAuth == false) {
+          CustomSnackbar.showError(
+            context,
+            'This account uses email/password. Please sign in with your password.',
+          );
+        } else {
+          CustomSnackbar.showError(
+            context,
+            response.message.isNotEmpty
+                ? response.message
+                : 'Apple Sign-In failed',
+          );
+        }
+        setState(() {
+          _isAppleLoading = false;
+        });
+      }
+    } catch (e) {
+      print("❌ Apple Sign-In error: $e");
+      CustomSnackbar.showError(
+        context,
+        'Apple Sign-In failed: ${e.toString()}',
+      );
+      setState(() {
+        _isAppleLoading = false;
       });
     }
   }
@@ -461,7 +575,7 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
                           height: 24,
                           child: Checkbox(
                             value: _rememberMe,
-                            onChanged: (value) {
+                            onChanged: (_isLoading || _isGoogleLoading || _isAppleLoading) ? null : (value) {
                               setState(() {
                                 _rememberMe = value ?? false;
                               });
@@ -498,7 +612,7 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
 
                 // Sign In Button
                 ElevatedButton(
-                  onPressed: _isLoading ? null : _handleLogin,
+                  onPressed: (_isLoading || _isGoogleLoading || _isAppleLoading) ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: secondaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 20),
@@ -600,22 +714,20 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
                 _buildSocialButton(
                   'Continue with Google',
                   Image.asset('assets/google.png', height: 20),
-                  _handleGoogleSignIn,
+                  (_isAppleLoading || _isLoading) ? null : () => _handleGoogleSignIn(),
                   isLoading: _isGoogleLoading,
                 ),
+
                 const SizedBox(height: 16),
 
-                // Apple Sign In Button (placeholder)
+                // Apple Sign In Button
                 _buildSocialButton(
                   'Continue with Apple',
                   Image.asset('assets/apple.png', height: 20),
-                  () {
-                    CustomSnackbar.showInfo(
-                      context,
-                      'Apple Sign-In coming soon',
-                    );
-                  },
+                  (_isGoogleLoading || _isLoading) ? null : () => _handleAppleSignIn(),
+                  isLoading: _isAppleLoading,
                 ),
+
                 const SizedBox(height: 20),
               ],
             ),
@@ -625,10 +737,10 @@ class _SignInAccountSellerScreenState extends State<SignInAccountSellerScreen> {
     );
   }
 
-  Widget _buildSocialButton(
+   Widget _buildSocialButton(
     String text,
     Widget icon,
-    VoidCallback onPressed, {
+    VoidCallback? onPressed, {
     bool isLoading = false,
   }) {
     return OutlinedButton(

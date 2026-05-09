@@ -23,6 +23,9 @@ class BuyerPersonalInfoSignup extends StatefulWidget {
   final bool isGoogleUser;
   final String? googleEmail;
   final String? googleName;
+  final bool isAppleUser;
+  final String? appleEmail;
+  final String? appleName;
 
   const BuyerPersonalInfoSignup({
     super.key,
@@ -32,6 +35,9 @@ class BuyerPersonalInfoSignup extends StatefulWidget {
     this.isGoogleUser = false,
     this.googleEmail,
     this.googleName,
+    this.isAppleUser = false,
+    this.appleEmail,
+    this.appleName,
   });
 
   @override
@@ -67,15 +73,20 @@ class _BuyerPersonalInfoSignupState extends State<BuyerPersonalInfoSignup> {
   @override
   void initState() {
     super.initState();
-    _prefillGoogleData();
+    _prefillSocialData();
   }
 
-  void _prefillGoogleData() {
+  void _prefillSocialData() {
     if (widget.isGoogleUser) {
       if (widget.googleName != null && widget.googleName!.isNotEmpty) {
         _fullNameController.text = widget.googleName!;
       }
       print('📝 Google User - Email: ${widget.googleEmail} (pre-verified)');
+    } else if (widget.isAppleUser) {
+      if (widget.appleName != null && widget.appleName!.isNotEmpty) {
+        _fullNameController.text = widget.appleName!;
+      }
+      print('📝 Apple User - Email: ${widget.appleEmail} (pre-verified)');
     }
   }
 
@@ -266,9 +277,11 @@ class _BuyerPersonalInfoSignupState extends State<BuyerPersonalInfoSignup> {
 
           showSuccessDialog(
             context,
-            title: widget.isGoogleUser ? 'Welcome!' : 'Profile Saved!',
+            title: (widget.isGoogleUser || widget.isAppleUser) ? 'Welcome!' : 'Profile Saved!',
             message: widget.isGoogleUser
                 ? 'Your account has been created successfully with Google!'
+                : widget.isAppleUser
+                ? 'Your account has been created successfully with Apple!'
                 : 'Your personal information has been saved successfully.',
             buttonText: 'Continue to Shop',
             onPressed: () {
@@ -347,34 +360,41 @@ class _BuyerPersonalInfoSignupState extends State<BuyerPersonalInfoSignup> {
             children: [
               const SizedBox(height: 16),
 
-              // Google User Info Banner
-              if (widget.isGoogleUser) ...[
+              // Social User Info Banner
+              if (widget.isGoogleUser || widget.isAppleUser) ...[
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
+                    color: widget.isGoogleUser ? Colors.blue.shade50 : Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.blue.shade100),
+                    border: Border.all(color: widget.isGoogleUser ? Colors.blue.shade100 : Colors.grey.shade200),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.g_mobiledata, color: Colors.blue.shade700, size: 24),
+                      Icon(
+                        widget.isGoogleUser ? Icons.g_mobiledata : Icons.apple,
+                        color: widget.isGoogleUser ? Colors.blue.shade700 : Colors.black,
+                        size: 24,
+                      ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Signed in with Google',
+                              widget.isGoogleUser ? 'Signed in with Google' : 'Signed in with Apple',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
-                                color: Colors.blue.shade700,
+                                color: widget.isGoogleUser ? Colors.blue.shade700 : Colors.black,
                                 fontSize: 14,
                               ),
                             ),
                             Text(
-                              widget.googleEmail ?? 'Email verified',
-                              style: TextStyle(color: Colors.blue.shade600, fontSize: 12),
+                              (widget.isGoogleUser ? widget.googleEmail : widget.appleEmail) ?? 'Email verified',
+                              style: TextStyle(
+                                color: widget.isGoogleUser ? Colors.blue.shade600 : Colors.grey.shade600,
+                                fontSize: 12,
+                              ),
                             ),
                           ],
                         ),

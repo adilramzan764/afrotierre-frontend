@@ -122,7 +122,9 @@ class _AddCardScreenState extends State<AddCardScreen> {
       ),
       body: _isInitializing
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
+          : GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 28, 20, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,6 +248,9 @@ class _AddCardScreenState extends State<AddCardScreen> {
               child: CardField(
                 onCardChanged: (details) {
                   setState(() => _cardDetails = details);
+                  if (details?.complete ?? false) {
+                    FocusScope.of(context).unfocus();
+                  }
                 },
                 style: const TextStyle(
                   fontSize: 16,
@@ -299,6 +304,7 @@ class _AddCardScreenState extends State<AddCardScreen> {
           ],
         ),
       ),
+    ),
       bottomNavigationBar: _buildBottomButtons(),
     );
   }

@@ -36,6 +36,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   ProductDetails? _product;
   bool _isLoading = true;
+  bool _hasError = false;
+  String? _errorMessage;
 
   int _selectedColorIndex = 0;
   int _selectedSizeIndex = 0;
@@ -56,22 +58,50 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   Future<void> _fetchProduct() async {
-    if (widget.productId == null) return;
+    if (widget.productId == null) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+          _errorMessage = "Product ID is missing";
+        });
+      }
+      return;
+    }
+
     try {
+      if (mounted) setState(() => _isLoading = true);
+
       final token = _session.authToken;
       final response = await _homeRepo.getProductDetails(
         productId: widget.productId!,
         token: token,
       );
-      if (mounted && response.success) {
-        setState(() {
-          _product = response.data;
-          _isWishlisted = response.data.isWishlisted;
-          _isLoading = false;
-        });
+
+      if (mounted) {
+        if (response.success && response.data != null) {
+          setState(() {
+            _product = response.data;
+            _isWishlisted = response.data.isWishlisted;
+            _isLoading = false;
+            _hasError = false;
+          });
+        } else {
+          setState(() {
+            _isLoading = false;
+            _hasError = true;
+            _errorMessage = "Failed to load product details";
+          });
+        }
       }
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+          _errorMessage = "An error occurred while fetching product: ${e.toString()}";
+        });
+      }
       debugPrint('Error fetching product: $e');
     }
   }
@@ -198,10 +228,97 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: _kBg,
+        body: _buildShimmer(),
+      );
+    }
+
+    if (_hasError || _product == null) {
+      return Scaffold(
+        backgroundColor: _kBg,
+        body: _buildErrorState(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: _kBg,
-      body: _isLoading ? _buildShimmer() : _buildContent(),
-      bottomNavigationBar: _isLoading ? null : _buildBottomBar(),
+      body: _buildContent(),
+      bottomNavigationBar: _buildBottomBar(),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 64,
+                color: Colors.red.shade400,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              "Oops! Something went wrong",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: _kInk,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _errorMessage ?? "We couldn't load the product details. Please try again later.",
+              style: TextStyle(
+                fontSize: 14,
+                color: _kMuted,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text("Go Back"),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    side: BorderSide(color: Colors.grey.shade300),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton.icon(
+                  onPressed: _fetchProduct,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text("Try Again"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _kInk,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 

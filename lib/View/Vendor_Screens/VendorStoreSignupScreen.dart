@@ -15,9 +15,12 @@ import 'VendorSignUpAddressScreen.dart';
 
 class VendorStoreSignupScreen extends StatefulWidget {
   final String token;
-  final bool isGoogleUser; // New parameter
-  final String? googleEmail; // Pre-filled email for Google users
-  final String? googleStoreName; // Suggested store name from Google
+  final bool isGoogleUser;
+  final String? googleEmail;
+  final String? googleStoreName;
+  final bool isAppleUser;
+  final String? appleEmail;
+  final String? appleStoreName;
 
   const VendorStoreSignupScreen({
     super.key,
@@ -25,6 +28,9 @@ class VendorStoreSignupScreen extends StatefulWidget {
     this.isGoogleUser = false,
     this.googleEmail,
     this.googleStoreName,
+    this.isAppleUser = false,
+    this.appleEmail,
+    this.appleStoreName,
   });
 
   @override
@@ -59,6 +65,16 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
       }
       if (widget.googleStoreName != null) {
         _storeNameController.text = widget.googleStoreName!;
+      }
+    }
+    
+    // Pre-fill data for Apple users
+    if (widget.isAppleUser) {
+      if (widget.appleEmail != null) {
+        _businessEmailController.text = widget.appleEmail!;
+      }
+      if (widget.appleStoreName != null) {
+        _storeNameController.text = widget.appleStoreName!;
       }
     }
   }
@@ -246,8 +262,15 @@ class _VendorStoreSignupScreenState extends State<VendorStoreSignupScreen> {
         }
 
         Navigator.pushReplacement(context,
-          MaterialPageRoute(builder: (_) => VendorSignUpAddressScreen(isGoogleUser: widget.isGoogleUser,googleEmail: widget.googleEmail,storeName: _storeNameController.text,token: widget.token,)
-        ));
+          MaterialPageRoute(builder: (_) => VendorSignUpAddressScreen(
+            isGoogleUser: widget.isGoogleUser,
+            googleEmail: widget.googleEmail,
+            isAppleUser: widget.isAppleUser,
+            appleEmail: widget.appleEmail,
+            storeName: _storeNameController.text,
+            token: widget.token,
+          ))
+        );
 
         // await _showSuccessDialog(response.message);
       } else {

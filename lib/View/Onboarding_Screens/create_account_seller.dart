@@ -8,6 +8,7 @@ import '../../Models/SellerModels/SellerAuthModels.dart';
 import '../../Repository/SellerRepository/SellerAuthRepository.dart';
 import '../../Services/AppSession.dart';
 import '../../Services/GoogleSignInService.dart';
+import '../../Services/AppleSignInService.dart';
 import '../Vendor_Screens/vendor_bottom_navigation_screen.dart';
 
 
@@ -26,7 +27,9 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _isGoogleLoading = false;
+  bool _isAppleLoading = false;
   String? _errorMessage;
+  final _session = AppSession.instance;
 
   // Password validation states
   bool _hasMinLength = false;
@@ -130,8 +133,8 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
         }
 
         print("🟢 Step 6: Token saved, checking AppSession...");
-        print("AppSession token: ${AppSession.instance.authToken}");
-        print("AppSession userId: ${AppSession.instance.userId}");
+        print("AppSession token: ${_session.authToken}");
+        print("AppSession userId: ${_session.userId}");
 
         // Navigate based on registration step
         if (mounted) {
@@ -169,6 +172,107 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
       });
     }
   }
+
+  // ==================== APPLE SIGN-IN METHOD ====================
+
+  Future<void> _handleAppleSignIn() async {
+    setState(() {
+      _isAppleLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      print("🟢 Apple Sign-In: Starting...");
+      final appleResult = await AppleSignInService.signIn();
+
+      if (appleResult == null) {
+        print("🔴 Apple Sign-In: User cancelled or failed");
+        setState(() {
+          _isAppleLoading = false;
+        });
+        return;
+      }
+
+      final String identityToken = appleResult['identityToken'];
+      final String? email = appleResult['email'];
+      final String? givenName = appleResult['givenName'];
+      final String? familyName = appleResult['familyName'];
+
+      Map<String, String>? fullName;
+      if (givenName != null || familyName != null) {
+        fullName = {
+          'firstName': givenName ?? '',
+          'lastName': familyName ?? '',
+        };
+      }
+
+      print("🟢 Apple Sign-In: Sending to backend...");
+      final response = await _authRepository.appleAuth(
+        identityToken: identityToken,
+        email: email,
+        fullName: fullName,
+      );
+
+      print("=== APPLE SIGNUP RESPONSE ===");
+      print("Success: ${response.success}");
+      print("Message: ${response.message}");
+      print("Token: ${response.token}");
+      print("=============================");
+
+      if (!mounted) return;
+
+      if (response.success && response.token != null) {
+        // Save to AppSession
+        if (response.seller != null) {
+          await AppleSignInService.saveSellerSession(response.token!, response.seller!);
+        } else {
+          final basicSeller = SellerModel(
+            id: '',
+            email: response.seller?.email ?? '',
+            registrationStep: response.seller?.registrationStep ?? 'store_details',
+            isEmailVerified: response.seller?.isEmailVerified ?? false,
+          );
+          await AppleSignInService.saveSellerSession(response.token!, basicSeller);
+        }
+
+        // Navigate based on registration step
+        final step = response.seller?.registrationStep;
+
+        if (step == 'completed') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const VendorBottomNavigationScreen(),
+            ),
+          );
+        } else {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => VendorStoreSignupScreen(
+                token: response.token!,
+                isAppleUser: true,
+                appleEmail: response.seller?.email,
+                appleStoreName: response.seller?.storeName,
+              ),
+            ),
+          );
+        }
+      } else {
+        setState(() {
+          _errorMessage = response.message;
+          _isAppleLoading = false;
+        });
+      }
+    } catch (e) {
+      print("❌ Apple Sign-In error: $e");
+      setState(() {
+        _errorMessage = 'Apple Sign-Up failed: ${e.toString()}';
+        _isAppleLoading = false;
+      });
+    }
+  }
+
   void _handleGoogleUserNavigation(AuthResponse response) {
     // Safely check if we have a valid token
     if (response.token == null || response.token!.isEmpty) {
@@ -391,6 +495,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               TextField(
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
+                enabled: !_isLoading && !_isGoogleLoading && !_isAppleLoading,
                 decoration: InputDecoration(
                   hintText: 'Enter your email',
                   border: OutlineInputBorder(
@@ -416,6 +521,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               TextField(
                 controller: _passwordController,
                 obscureText: !_isPasswordVisible,
+                enabled: !_isLoading && !_isGoogleLoading && !_isAppleLoading,
                 decoration: InputDecoration(
                   hintText: 'Password',
                   border: OutlineInputBorder(
@@ -508,7 +614,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
 
               // Sign Up Button
               ElevatedButton(
-                onPressed: _isLoading ? null : _handleSignUp,
+                onPressed: (_isLoading || _isGoogleLoading || _isAppleLoading) ? null : _handleSignUp,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: secondaryColor,
                   padding: const EdgeInsets.symmetric(vertical: 20),
@@ -576,7 +682,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
               _buildSocialButton(
                 'Continue with Google',
                 Image.asset('assets/google.png', height: 20),
-                _handleGoogleSignIn,
+                (_isAppleLoading || _isLoading) ? null : () => _handleGoogleSignIn(),
                 isLoading: _isGoogleLoading,
               ),
 
@@ -584,17 +690,14 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
 
 
 
-              // Apple Sign In Button (placeholder - implement if needed)
+              // Apple Sign In Button
               _buildSocialButton(
                 'Continue with Apple',
                 Image.asset('assets/apple.png', height: 20),
-                    () {
-                  // TODO: Implement Apple Sign-In
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Apple Sign-In coming soon!')),
-                  );
-                },
+                (_isGoogleLoading || _isLoading) ? null : () => _handleAppleSignIn(),
+                isLoading: _isAppleLoading,
               ),
+
 
               const SizedBox(height: 20),
             ],
@@ -607,7 +710,7 @@ class _CreateAccountSellerScreenState extends State<CreateAccountSellerScreen> {
   Widget _buildSocialButton(
       String text,
       Widget icon,
-      VoidCallback onPressed, {
+      VoidCallback? onPressed, {
         bool isLoading = false,
       }) {
     return OutlinedButton(

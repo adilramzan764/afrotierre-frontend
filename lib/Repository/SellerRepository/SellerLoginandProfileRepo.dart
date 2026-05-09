@@ -30,7 +30,7 @@ class SellerLoginandProfileRepo {
         Uri.parse(_buildUrl(ApiConstants.appleAuth)),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'identityToken': identityToken,
+          'idToken': identityToken,
           if (fullName != null) 'fullName': fullName,
           if (email != null) 'email': email,
         }),
@@ -68,7 +68,7 @@ class SellerLoginandProfileRepo {
           'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'identityToken': identityToken,
+          'idToken': identityToken,
           if (fullName != null) 'fullName': fullName,
         }),
       );

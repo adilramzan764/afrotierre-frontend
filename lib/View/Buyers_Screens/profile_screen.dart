@@ -8,6 +8,7 @@ import 'dart:io';
 
 import '../../Services/AppSession.dart';
 import '../../Services/GoogleSignInService.dart';
+import '../../Services/AppleSignInService.dart';
 import '../../constants.dart';
 import '../Onboarding_Screens/sign_in_account_buyer.dart';
 import '../Vendor_Screens/AboutUsScreen.dart';
@@ -29,6 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _profilePictureUrl;
   bool _isLoading = true;
   bool _isGoogleUser = false;
+  bool _isAppleUser = false;
 
   @override
   void initState() {
@@ -44,8 +46,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _userEmail = buyerProfile?.email ?? 'No email found';
         _userName = buyerProfile?.fullName ?? 'Buyer';
 
-        // Check if this is a Google user using the isGoogleUser flag
+        // Check if this is a Google or Apple user
         _isGoogleUser = buyerProfile?.isGoogleUser ?? false;
+        _isAppleUser = buyerProfile?.isAppleUser ?? false;
 
         // Handle profile picture - prioritize Google avatar first, then profilePicture
         if (buyerProfile?.avatar != null && buyerProfile!.avatar!.isNotEmpty) {
@@ -110,6 +113,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ],
+              if (_isAppleUser) ...[
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.apple, size: 14, color: Colors.black),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'Apple Account',
+                        style: TextStyle(fontSize: 11, color: Colors.black),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
 
               const SizedBox(height: 32),
               _buildSectionTitle('Account settings'),
@@ -142,8 +166,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   );
                 },
               ),
-              // Only show change password for non-Google users
-              if (!_isGoogleUser)
+              // Only show change password for non-Google/Apple users
+              if (!_isGoogleUser && !_isAppleUser)
                 _buildProfileMenuItem(
                   icon: Icons.lock_outline,
                   title: 'Change password',
@@ -337,10 +361,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                _isGoogleUser
-                    ? 'Are you sure you want to log out?\nYou will need to sign in with Google again.'
-                    : 'Are you sure you want to log out\nof your account?',
+                Text(
+                  _isGoogleUser
+                      ? 'Are you sure you want to log out?\nYou will need to sign in with Google again.'
+                      : _isAppleUser
+                          ? 'Are you sure you want to log out?\nYou will need to sign in with Apple again.'
+                          : 'Are you sure you want to log out\nof your account?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
@@ -476,6 +502,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // Complete Google sign out (sign out from Google + clear session)
       await GoogleSignInService.completeSignOut();
       print('✅ Google user signed out completely');
+    } else if (_isAppleUser) {
+      // Complete Apple sign out
+      await AppleSignInService.completeSignOut();
+      print('✅ Apple user signed out completely');
     } else {
       // Regular email/password user - just clear session
       _session.clearSession();

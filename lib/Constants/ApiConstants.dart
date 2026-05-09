@@ -34,9 +34,9 @@ class ApiConstants {
   static const String linkGoogle = '/auth/google/link';
   static const String unlinkGoogle = '/auth/google/unlink';
 
-  static const String appleAuth = '/auth/apple';
-  static const String linkApple = '/auth/apple/link';
-  static const String unlinkApple = '/auth/apple/unlink';
+  static const String appleAuth = '/auth/auth/apple';
+  static const String linkApple = '/auth/auth/apple/link';
+  static const String unlinkApple = '/auth/auth/apple/unlink';
   static const String refreshToken = '/auth/refresh-token';
 
   // Password reset endpoints
@@ -52,14 +52,14 @@ class ApiConstants {
   // Product endpoints
   static const String createProduct = '/products/addproduct';
   static const String getSellerProducts = '/products/getproducts';
-  static const String getProduct = '/api/seller/products';
+  static const String getProduct = '/products';
   static const String updateProduct = '/products/updateproduct';
   static const String deleteProductImage = '/products/deleteimage';
-  static const String archiveProduct = '/api/seller/products/archive';
-  static const String deleteProduct = '/api/seller/products';
-  static const String getProductStats = '/api/seller/products/stats';
-  static const String updateStock = '/api/seller/products/stock';
-  static const String getProductsByCategory = '/api/seller/products/category';
+  static const String archiveProduct = '/products/archive';
+  static const String deleteProduct = '/products';
+  static const String getProductStats = '/products/stats';
+  static const String updateStock = '/products/stock';
+  static const String getProductsByCategory = '/products/category';
   static const String getSellerAllowedCategories = '/products/categories';
   static const String publishProduct = '/products/publish';
   static const String unpublishProduct = '/products/unpublish';
@@ -75,9 +75,9 @@ class ApiConstants {
   static const String linkGoogleBuyer = '/auth/link-google';
   static const String unlinkGoogleBuyer = '/auth/unlink-google';
 
-  static const String appleAuthBuyer = '/auth/apple';
-  static const String linkAppleBuyer = '/auth/apple/link';
-  static const String unlinkAppleBuyer = '/auth/apple/unlink';
+  static const String appleAuthBuyer = '/auth/apple-auth';
+  static const String linkAppleBuyer = '/auth/link-apple';
+  static const String unlinkAppleBuyer = '/auth/unlink-apple';
 
 
 // Buyer Home endpoints

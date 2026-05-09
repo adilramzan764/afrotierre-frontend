@@ -12,6 +12,7 @@ import '../../Models/BuyerModels/BuyerLoginandProfileModels.dart';
 import '../../Repository/BuyerRepository/BuyerLoginProfileRepo.dart';
 import '../../Services/AppSession.dart';
 import '../../Services/GoogleSignInService.dart';
+import '../../Services/AppleSignInService.dart';
 import '../../res/Widgets/CustomSnackbar.dart';
 import '../Buyers_Screens/BuyerForgotPasswordScreen.dart';
 import '../Buyers_Screens/BuyerPersonalInfoSignup.dart';
@@ -31,6 +32,7 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
   bool _isPasswordVisible = false;
   bool _isLoading = false;
   bool _isGoogleLoading = false;
+  bool _isAppleLoading = false;
   bool _rememberMe = true;
 
   final _emailController = TextEditingController();
@@ -251,6 +253,140 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
     }
   }
 
+  // ==================== APPLE SIGN-IN METHOD ====================
+
+  Future<void> _handleAppleSignIn() async {
+    setState(() {
+      _isAppleLoading = true;
+    });
+
+    try {
+      print("🟢 Apple Sign-In: Starting...");
+      final appleResult = await AppleSignInService.signIn();
+
+      if (appleResult == null) {
+        print("🔴 Apple Sign-In: User cancelled or failed");
+        setState(() {
+          _isAppleLoading = false;
+        });
+        return;
+      }
+
+      final String identityToken = appleResult['identityToken'];
+      final String? email = appleResult['email'];
+      final String? givenName = appleResult['givenName'];
+      final String? familyName = appleResult['familyName'];
+
+      Map<String, String>? fullName;
+      if (givenName != null || familyName != null) {
+        fullName = {
+          'firstName': givenName ?? '',
+          'lastName': familyName ?? '',
+        };
+      }
+
+      print("🟢 Apple Sign-In: Sending to backend...");
+      final response = await _repo.appleAuth(
+        identityToken: identityToken,
+        email: email,
+        fullName: fullName,
+      );
+
+      print("=== APPLE LOGIN RESPONSE ===");
+      print("Success: ${response.success}");
+      print("Message: ${response.message}");
+      print("Token: ${response.token}");
+      print("=============================");
+
+      if (!mounted) return;
+
+      if (response.success &&
+          response.token != null &&
+          response.buyer != null) {
+        print("🟢 Apple Sign-In: Authentication successful");
+
+        BuyerData? completeBuyerProfile;
+        try {
+          final profileResponse = await _repo.getProfile(
+            response.token!,
+            context: context,
+          );
+
+          if (profileResponse.success && profileResponse.buyer.id.isNotEmpty) {
+            completeBuyerProfile = profileResponse.buyer;
+          } else {
+            completeBuyerProfile = _convertToBuyerData(response.buyer!);
+          }
+        } catch (profileError) {
+          completeBuyerProfile = _convertToBuyerData(response.buyer!);
+        }
+
+        await _session.setRememberMe(_rememberMe);
+        if (_rememberMe && response.buyer!.email.isNotEmpty) {
+          await _saveGoogleUserInfo(response.buyer!.email); // Reuse google saver
+        }
+
+        await _session.setBuyerSession(
+          token: response.token!,
+          refreshToken: response.refreshToken ?? '',
+          buyer: completeBuyerProfile,
+        );
+
+        final step = completeBuyerProfile.registrationStep;
+
+        if (step == 'completed') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const BottomNavigationScreen(),
+            ),
+          );
+        } else {
+          CustomSnackbar.showError(
+            context,
+            'User registration incomplete. Please complete your profile information.',
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => BuyerPersonalInfoSignup(
+                token: response.token!,
+                refreshToken: response.refreshToken ?? '',
+                isAppleUser: true,
+                appleEmail: response.buyer?.email,
+                appleName: response.buyer?.fullName,
+              ),
+            ),
+          );
+        }
+      } else {
+        if (response.useAppleAuth == false) {
+          CustomSnackbar.showError(
+            context,
+            'This account uses email/password. Please sign in with your password.',
+          );
+        } else {
+          CustomSnackbar.showError(
+            context,
+            response.message.isNotEmpty ? response.message : 'Apple Sign-In failed',
+          );
+        }
+        setState(() {
+          _isAppleLoading = false;
+        });
+      }
+    } catch (e) {
+      print("❌ Apple Sign-In error: $e");
+      CustomSnackbar.showError(
+        context,
+        'Apple Sign-In failed: ${e.toString()}',
+      );
+      setState(() {
+        _isAppleLoading = false;
+      });
+    }
+  }
+
   BuyerData _convertToBuyerData(Buyer buyer) {
     return BuyerData(
       id: buyer.id,
@@ -265,6 +401,10 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
       dateOfBirth: buyer.dateOfBirth,
       address: buyer.address?.toJson(),
       completedAt: buyer.completedAt,
+      googleId: buyer.googleId,
+      isGoogleUser: buyer.isGoogleUser,
+      appleId: buyer.appleId,
+      isAppleUser: buyer.isAppleUser,
     );
   }
 
@@ -436,7 +576,7 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  enabled: !_isLoading && !_isGoogleLoading,
+                  enabled: !_isLoading && !_isGoogleLoading && !_isAppleLoading,
                   decoration: InputDecoration(
                     hintText: 'Enter your email',
                     border: OutlineInputBorder(
@@ -464,7 +604,7 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
                 TextField(
                   controller: _passwordController,
                   obscureText: !_isPasswordVisible,
-                  enabled: !_isLoading && !_isGoogleLoading,
+                  enabled: !_isLoading && !_isGoogleLoading && !_isAppleLoading,
                   decoration: InputDecoration(
                     hintText: 'Password',
                     border: OutlineInputBorder(
@@ -503,7 +643,7 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
                           height: 24,
                           child: Checkbox(
                             value: _rememberMe,
-                            onChanged: (_isLoading || _isGoogleLoading)
+                            onChanged: (_isLoading || _isGoogleLoading || _isAppleLoading)
                                 ? null
                                 : (value) {
                               setState(() {
@@ -545,7 +685,7 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
                 // ── Sign In Button ──
                 ElevatedButton(
                   onPressed:
-                  (_isLoading || _isGoogleLoading) ? null : _handleLogin,
+                  (_isLoading || _isGoogleLoading || _isAppleLoading) ? null : _handleLogin,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: secondaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 20),
@@ -647,7 +787,7 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
                 _buildSocialButton(
                   'Continue with Google',
                   Image.asset('assets/google.png', height: 20),
-                  _handleGoogleSignIn,
+                  (_isAppleLoading || _isLoading) ? null : () => _handleGoogleSignIn(),
                   isLoading: _isGoogleLoading,
                 ),
                 const SizedBox(height: 16),
@@ -656,12 +796,10 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
                 _buildSocialButton(
                   'Continue with Apple',
                   Image.asset('assets/apple.png', height: 20),
-                      () {
-                    CustomSnackbar.showInfo(
-                        context, 'Apple sign in coming soon');
-                  },
-                  isLoading: false,
+                  (_isGoogleLoading || _isLoading) ? null : () => _handleAppleSignIn(),
+                  isLoading: _isAppleLoading,
                 ),
+
                 const SizedBox(height: 20),
               ],
             ),
@@ -671,10 +809,10 @@ class _SignInAccountBuyerScreenState extends State<SignInAccountBuyerScreen> {
     );
   }
 
-  Widget _buildSocialButton(
+   Widget _buildSocialButton(
       String text,
       Widget icon,
-      VoidCallback onPressed, {
+      VoidCallback? onPressed, {
         required bool isLoading,
       }) {
     return OutlinedButton(

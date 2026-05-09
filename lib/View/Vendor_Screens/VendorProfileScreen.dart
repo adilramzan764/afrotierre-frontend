@@ -9,6 +9,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import '../../Services/AppSession.dart';
 import '../../Services/GoogleSignInService.dart';
+import '../../Services/AppleSignInService.dart';
 import '../../constants.dart';
 import '../Buyers_Screens/NotificationSettingsScreen.dart';
 import 'AboutUsScreen.dart';
@@ -17,14 +18,18 @@ import 'PickupAddressListScreen.dart';
 import '../Onboarding_Screens/sign_in_account_seller.dart';
 import 'VendorPayoutSetupScreen.dart';
 
-class VendorProfileScreen extends StatelessWidget {
-   const VendorProfileScreen({super.key});
+class VendorProfileScreen extends StatefulWidget {
+  const VendorProfileScreen({super.key});
 
+  @override
+  State<VendorProfileScreen> createState() => _VendorProfileScreenState();
+}
 
+class _VendorProfileScreenState extends State<VendorProfileScreen> {
+  final AppSession _session = AppSession.instance;
 
-   @override
+  @override
   Widget build(BuildContext context) {
-     final AppSession _session = AppSession.instance;
 
      return Scaffold(
       backgroundColor: const Color(0xffF6F6F6),
@@ -39,8 +44,51 @@ class VendorProfileScreen extends StatelessWidget {
           // ── Store name + rating ─────────────────────────────────────────
            Text(
             _session.sellerProfile?.storeName ?? 'Vendor',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
           ),
+          if (_session.sellerProfile?.isGoogleUser == true) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.g_mobiledata, size: 14, color: Colors.blue.shade700),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Google Account',
+                    style: TextStyle(fontSize: 11, color: Colors.blue.shade700),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (_session.sellerProfile?.isAppleUser == true) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.apple, size: 14, color: Colors.black),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Apple Account',
+                    style: TextStyle(fontSize: 11, color: Colors.black),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // const SizedBox(height: 6),
           // Row(
           //   mainAxisSize: MainAxisSize.min,
@@ -161,18 +209,21 @@ class VendorProfileScreen extends StatelessWidget {
           _sectionTitle('Account'),
           const SizedBox(height: 8),
           _menuCard([
-            _menuItem(
-              icon: Icons.lock_outline,
-              title: 'Change password',
-              onTap: () =>
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ChangePasswordScreen(isSeller: true,),
+            // Only show change password for non-Google/Apple users
+            if (_session.sellerProfile?.isGoogleUser != true && _session.sellerProfile?.isAppleUser != true)
+              _menuItem(
+                icon: Icons.lock_outline,
+                title: 'Change password',
+                onTap: () =>
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ChangePasswordScreen(isSeller: true,),
+                      ),
                     ),
-                  ),
-            ),
+                isLast: true,
+              ),
             // _menuItem(
             //   icon: Icons.notifications_outlined,
             //   title: 'Notifications',
@@ -309,7 +360,11 @@ class VendorProfileScreen extends StatelessWidget {
 
                   // Subtitle
                   Text(
-                    'Are you sure you want to log out\nof your account?',
+                    _session.sellerProfile?.isGoogleUser == true
+                        ? 'Are you sure you want to log out?\nYou will need to sign in with Google again.'
+                        : _session.sellerProfile?.isAppleUser == true
+                            ? 'Are you sure you want to log out?\nYou will need to sign in with Apple again.'
+                            : 'Are you sure you want to log out\nof your account?',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -364,6 +419,10 @@ class VendorProfileScreen extends StatelessWidget {
                                 // Complete Google sign out (sign out from Google + clear session)
                                 await GoogleSignInService.completeSignOut();
                                 print("✅ Google user signed out completely");
+                              } else if (session.sellerProfile?.isAppleUser == true) {
+                                // Complete Apple sign out
+                                await AppleSignInService.completeSignOut();
+                                print("✅ Apple user signed out completely");
                               } else {
                                 // Regular email/password user - just clear session
                                 session.clearSession();

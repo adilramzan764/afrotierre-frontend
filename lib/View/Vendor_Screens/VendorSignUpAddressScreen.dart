@@ -10,13 +10,17 @@ import '../Onboarding_Screens/sign_in_account_seller.dart';
 class VendorSignUpAddressScreen extends StatefulWidget {
   final bool isGoogleUser;
   final String? googleEmail;
+  final bool isAppleUser;
+  final String? appleEmail;
   final String storeName;
   final String? token;
 
   const VendorSignUpAddressScreen({
     super.key,
-    required this.isGoogleUser,
+    this.isGoogleUser = false,
     this.googleEmail,
+    this.isAppleUser = false,
+    this.appleEmail,
     required this.storeName,
     this.token,
   });
@@ -51,6 +55,9 @@ class _VendorSignUpAddressScreenState
     _pickupRepository = SellerPickupAddressRepository();
     if (widget.googleEmail != null) {
       _emailController.text = widget.googleEmail!;
+    }
+    if (widget.appleEmail != null) {
+      _emailController.text = widget.appleEmail!;
     }
   }
 
